@@ -1,0 +1,5 @@
+Namespace(dataset='cub', exp='Independent_CtoY', seed=1, log_dir='c_to_y', batch_size=64, epochs=1, save_step=1000, lr=0.001, weight_decay=5e-05, pretrained=False, freeze=False, use_aux=False, use_attr=True, attr_loss_weight=1.0, no_img=True, bottleneck=False, weighted_loss='', uncertain_labels=False, n_attributes=112, expand_dim=0, n_class_attr=2, data_dir='official_datasets', image_dir='images', resampling=False, end2end=False, optimizer='sgd', ckpt='', scheduler_step=1000, normalize_loss=False, use_relu=False, use_sigmoid=False, connect_CY=False, three_class=False)
+train_data_path: class_attr_data_10/train.pkl
+Epoch 0	 Train loss: 2.6544	 Train acc: 0.53%	
+                        Val loss: 2.6342	 Val acc: 0.42%	
+                        Best Val epoch: 0 
