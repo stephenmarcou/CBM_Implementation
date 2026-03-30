@@ -1,6 +1,7 @@
-#SBATCH --job-name=test_cluster
-#SBATCH --output="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/logs/test_cluster_%j.out"
-#SBATCH --error="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/logs/test_cluster_%j.err"    
+#!/bin/bash
+#SBATCH --job-name=independent_c_to_y
+#SBATCH --output="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/logs/independent_c_to_y_%j.out"
+#SBATCH --error="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/logs/independent_c_to_y_%j.err"    
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=2G
