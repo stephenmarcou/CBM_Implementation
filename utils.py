@@ -57,6 +57,17 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 
+def binary_accuracy(output, target):
+    """
+    Computes accuracy for multi-label binary predictions.
+    output: probabilities (after sigmoid)
+    target: binary labels (0 or 1)
+    """
+    pred = (output >= 0.5).float()
+    correct = (pred == target).float().sum()
+    acc = correct / target.numel()
+    return acc * 100
+
 
 
 

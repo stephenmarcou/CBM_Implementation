@@ -9,3 +9,9 @@ cbm_implementation_venv/
 __pycache__/
 *.pyc
 
+# Logs and saved models
+Logs/
+Joint0.01Model__Seed1/
+c_to_y/
+outputs/
+

@@ -12,7 +12,7 @@ from PIL import Image, UnidentifiedImageError
 
 from torch.utils.data import BatchSampler
 from torch.utils.data import Dataset, DataLoader
-from config import CUB_DATA_DIR, N_ATTRIBUTES
+from config import CUB_DATA_DIR, N_ATTRIBUTES_ORIG, PKL_FILE_DIR 
 
 
 
@@ -83,13 +83,13 @@ class CUBDataset(Dataset):
             if self.no_img:
                 # whether attr prediction is a binary or triary classification
                 if self.n_class_attr == 3:
-                    one_hot_attr_label = np.zeros((N_ATTRIBUTES, self.n_class_attr), dtype=np.float32)
-                    one_hot_attr_label[np.arange(N_ATTRIBUTES), attr_label] = 1
+                    one_hot_attr_label = np.zeros((N_ATTRIBUTES_ORIG, self.n_class_attr), dtype=np.float32)
+                    one_hot_attr_label[np.arange(N_ATTRIBUTES_ORIG), attr_label] = 1
                     return one_hot_attr_label, class_label
                 else:
                     return attr_label, class_label
             else:
-                # This can not be used for training as would bet too many values to unpack
+                # When attribute and image are used for class prediction. Accessed in run_epoch_from_raw_input in train.py
                 return img, class_label, attr_label
         else:
             return img, class_label
@@ -137,13 +137,14 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     def __len__(self):
         return self.num_samples
 
-def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_class_attr=2, image_dir='images', resampling=False, resol=299, augment = True):
+def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_class_attr=2, image_dir='images', resampling=False, resol=224, augment=True):
     """
-    Note: Inception needs (299,299,3) images with inputs scaled between -1 and 1
+    Note: ResNet preprocessing uses 224 crops with ImageNet normalization.
     Loads data with transformations applied, and upsample the minority class if there is class imbalance and weighted loss is not used
     NOTE: resampling is customized for first attribute only, so change sampler.py if necessary
     """
-    resized_resol = int(resol * 256/224)
+    # Old default (Inception): resol = 299
+    resized_resol = int(resol * 256 / 224)
     is_training = any(['train.pkl' in f for f in pkl_paths])
     
     
@@ -155,13 +156,16 @@ def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_
             transforms.RandomResizedCrop(resol),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(), #implicitly divides by 255
-            transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [2, 2, 2])
+            # Old normalization: transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[2, 2, 2])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
     else:
         transform = transforms.Compose([
+            transforms.Resize(resized_resol),
             transforms.CenterCrop(resol),
             transforms.ToTensor(), #implicitly divides by 255
-            transforms.Normalize(mean = [0.5, 0.5, 0.5], std = [2, 2, 2])
+            # Old normalization: transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[2, 2, 2])
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
 
     dataset = CUBDataset(pkl_file_paths=pkl_paths,
@@ -187,22 +191,27 @@ def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_
     return loader
 
 
-
-def find_class_imbalance(pkl_file, multiple_attr=False, attr_idx=-1):
+# Calculated total number of samples / number of positive samples for each attribute (or overall) to determine imbalance ratio for weighted loss = n/n_ones - 1
+# 100 samples, 10 ones and 90 zeros => imbalance ratio = 100/10 - 1 = 9.0, so weight positive samples 9x more than negative samples in loss function
+def find_class_imbalance(full_pkl_file_path, multiple_attr=False, attr_idx=-1):
     """
     Calculate class imbalance ratio for binary attribute labels stored in pkl_file
     If attr_idx >= 0, then only return ratio for the corresponding attribute id
-    If multiple_attr is True, then return imbalance ratio separately for each attribute. Else, calculate the overall imbalance across all attributes
+    If multiple_attr is True, then return imbalance ratio separately for each attribute. 
+    Else, calculate the overall imbalance across all attributes
     """
     imbalance_ratio = []
-    data = pickle.load(open(os.path.join(BASE_DIR, pkl_file), 'rb'))
+    data = pickle.load(open(full_pkl_file_path, 'rb'))
     n = len(data)
     n_attr = len(data[0]['attribute_label'])
+    # Imbalance ratio for specified attribute if attr_idx is given
     if attr_idx >= 0:
         n_attr = 1
+    # Imbalance ratio individually for each attribute
     if multiple_attr:
         n_ones = [0] * n_attr
         total = [n] * n_attr
+    # Overall imbalance ratio across all attributes
     else:
         n_ones = [0]
         total = [n * n_attr]

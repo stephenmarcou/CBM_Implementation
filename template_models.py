@@ -1,23 +1,7 @@
-from torchvision.models import resnet50
+
 from torch import nn
 
-def resnet50(pretrained, freeze, output_dim):
-    """
 
-    Args:
-        pretrained (bool): whether to use a pretrained model (e.g. pretrained on ImageNet)
-        freeze (bool): whether to freeze the pretrained layers (i.e. only train the final layer)
-        output_dim (int): the dimensionality of the output layer
-
-    Returns:
-        a ResNet model with the specified configuration
-    """
-    model = resnet50(pretrained=pretrained)
-    if freeze:
-        for param in model.parameters():
-            param.requires_grad = False
-    model.fc = nn.Linear(model.fc.in_features, output_dim)
-    return model
 
 
 class MLP(nn.Module):

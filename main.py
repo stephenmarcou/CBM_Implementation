@@ -1,8 +1,8 @@
 
 import argparse
 import sys
-from train import train_c_to_y
-from config import N_ATTRIBUTES
+from train import train_c_to_y, train_joint
+from config import N_ATTRIBUTES_ORIG
 
 def parse_arguments():
     # Get argparse configs from user
@@ -42,11 +42,15 @@ def parse_arguments():
         return (hyperopt.parse_arguments(parser),)
 
     else:
+        # I added
+        parser.add_argument('-incomplete', action='store_true', help='Whether to train on incomplete set of concept data')
+        
         parser.add_argument('-log_dir', default=None, help='where the trained model is saved')
         parser.add_argument('-batch_size', '-b', type=int, help='mini-batch size')
         parser.add_argument('-epochs', '-e', type=int, help='epochs for training process')
         parser.add_argument('-save_step', default=1000, type=int, help='number of epochs to save model')
         parser.add_argument('-lr', type=float, help="learning rate")
+        parser.add_argument('-momentum', type=float, default=0.9, help='momentum for SGD/RMSprop optimizers')
         parser.add_argument('-weight_decay', type=float, default=5e-5, help='weight decay for optimizer')
         parser.add_argument('-pretrained', '-p', action='store_true',
                             help='whether to load pretrained model & just fine-tune')
@@ -62,7 +66,7 @@ def parse_arguments():
                             help='Whether to use weighted loss for single attribute or multiple ones')
         parser.add_argument('-uncertain_labels', action='store_true',
                             help='whether to use (normalized) attribute certainties as labels')
-        parser.add_argument('-n_attributes', type=int, default=N_ATTRIBUTES,
+        parser.add_argument('-n_attributes', type=int, default=N_ATTRIBUTES_ORIG,
                             help='whether to apply bottlenecks to only a few attributes')
         parser.add_argument('-expand_dim', type=int, default=0,
                             help='dimension of hidden layer (if we want to increase model capacity) - for bottleneck only')
@@ -92,12 +96,18 @@ def parse_arguments():
         return args
     
     
+    
+
+    
 
 
 def run_experiments(args):
 
     if args.exp == "Independent_CtoY":
         train_c_to_y(args)
+    
+    if args.exp == "Joint":
+        train_joint(args)
 
 
 if __name__ == "__main__":
@@ -106,7 +116,6 @@ if __name__ == "__main__":
     
     args = parse_arguments()
     
-    print(f"sdasasda: {args.exp}")
     
     # Seeds
     np.random.seed(args.seed)

@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 from torchvision.models import inception_v3
-from template_models import resnet50
+from torchvision.models import resnet34
 from template_models import MLP
+from utils_models import wrap_pretrained_model, End2EndModel
 
 
 
@@ -16,6 +17,24 @@ def ModelCtoy(pretrained, freeze, input_dim, output_dim, expand_dim):
     model = MLP(input_dim=input_dim, output_dim=output_dim, expand_dim=expand_dim)
     return model
 
+
+# Joint Model
+def ModelXtoCtoY(n_class_attr, pretrained, num_classes, n_attributes, expand_dim,
+                 use_relu, use_sigmoid):
+    
+    if n_class_attr == 3:
+        raise NotImplementedError("3 class attribute prediction not implemented for X -> C -> Y model yet")
+    
+    output_dim = n_attributes
+    
+    model1 = wrap_pretrained_model(resnet34, pretrain_model = pretrained)(output_dim=output_dim)
+    
+    if n_class_attr == 3:
+        raise NotImplementedError("3 class attribute prediction not implemented for X -> C -> Y model yet")
+        model2 = MLP(input_dim=n_attributes * n_class_attr, num_classes=num_classes, expand_dim=expand_dim)
+    else:
+        model2 = MLP(input_dim=n_attributes, output_dim=num_classes, expand_dim=expand_dim)
+    return End2EndModel(model1, model2, use_relu, use_sigmoid, n_class_attr)
 
 
 
