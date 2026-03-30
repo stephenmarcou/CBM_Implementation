@@ -152,7 +152,7 @@ def train(model, args):
     # Determine imbalance
     imbalance = None
     if args.use_attr and not args.no_img and args.weighted_loss:
-        train_data_path = PKL_FILE_DIR + 'train.pkl'
+        train_data_path = DATA_DIR + PKL_FILE_DIR + 'train.pkl'
         if args.weighted_loss == 'multiple':
             imbalance = find_class_imbalance(train_data_path, multiple_attr=True)
         else:
