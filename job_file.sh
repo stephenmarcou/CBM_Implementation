@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=independent_c_to_y
-#SBATCH --output=/cluster/home/smarcou/Desktop/Work\ \(biomed\)/vogtlab/Group/smarcou/logs/%x_%j.out
-#SBATCH --error=/cluster/home/smarcou/Desktop/Work\ \(biomed\)/vogtlab/Group/smarcou/logs/%x_%j.err
+#SBATCH --output="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/logs/%x_%j.out"
+#SBATCH --error="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/logs/%x_%j.err"
 #SBATCH -p gpu
 #SBATCH --gres=gpu:1
 #SBATCH --mem=4G
