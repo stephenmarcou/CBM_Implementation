@@ -286,7 +286,7 @@ def train(model, args):
 
 ### Training Individual models ###
 def train_c_to_y(args):
-    model = ModelCtoy(pretrained=args.pretrained, freeze=args.freeze, input_dim=args.n_attributes, output_dim=args.n_attributes, expand_dim=args.expand_dim)
+    model = ModelCtoy(pretrained=args.pretrained, freeze=args.freeze, input_dim=args.n_attributes, output_dim=N_CLASSES, expand_dim=args.expand_dim)
     train(model, args)
     
 def train_joint(args):
