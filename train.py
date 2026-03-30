@@ -1,9 +1,9 @@
 import torch 
 from utils import accuracy, Logger, AverageMeter, binary_accuracy
 import os
-from config import CUB_DATA_DIR, PKL_FILE_DIR, MIN_LR, LR_DECAY_SIZE, PKL_FILE_INCOMPLETE_DIR, N_CLASSES, ROOT_LOG_DIR
+from config import CUB_DATA_DIR, PKL_FILE_DIR, MIN_LR, LR_DECAY_SIZE, PKL_FILE_INCOMPLETE_DIR, N_CLASSES, ROOT_LOG_DIR, DATA_DIR
 from models import ModelCtoy, ModelXtoCtoY
-from dataset import load_data, find_class_imbalance
+from dataset import load_data, find_class_imbalance, create_incomplete_concept_data
 import math
 
 
@@ -196,10 +196,12 @@ def train(model, args):
     
     # Train on incomplete set of concept data if -incomplete flag is included, otherwise train on complete set of concept data
     if args.incomplete:
-        train_data_path = os.path.join(PKL_FILE_INCOMPLETE_DIR, 'train.pkl')
-        val_data_path = os.path.join(PKL_FILE_INCOMPLETE_DIR, 'val.pkl')
+        # Check if incomplete data files exist, otherwise create them
+        create_incomplete_concept_data(args.n_attributes) # creates incomplete concept data and saves it to pkl file
+        train_data_path = os.path.join(DATA_DIR, PKL_FILE_INCOMPLETE_DIR, 'train.pkl')
+        val_data_path = train_data_path.replace('train.pkl', 'val.pkl')
     else:
-        train_data_path = os.path.join(PKL_FILE_DIR, 'train.pkl')
+        train_data_path = os.path.join(DATA_DIR, PKL_FILE_DIR, 'train.pkl')
         val_data_path = train_data_path.replace('train.pkl', 'val.pkl')
         
     logger.write(f"train_data_path: {train_data_path}\n")

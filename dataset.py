@@ -6,13 +6,43 @@ import torch
 import pickle
 import numpy as np
 import torchvision.transforms as transforms
-import re
 
+import random
 from PIL import Image, UnidentifiedImageError
 
 from torch.utils.data import BatchSampler
 from torch.utils.data import Dataset, DataLoader
-from config import CUB_DATA_DIR, N_ATTRIBUTES_ORIG, PKL_FILE_DIR 
+from config import CUB_DATA_DIR, N_ATTRIBUTES_ORIG, PKL_FILE_DIR, DATA_DIR, PKL_FILE_INCOMPLETE_DIR
+
+
+def create_incomplete_concept_data(n_attributes_keep):
+    
+    print(f"Creating incomplete concept data with number of concepts kept: {n_attributes_keep}")
+    
+
+    pkl_files = [f for f in os.listdir(DATA_DIR + PKL_FILE_DIR) if f.endswith('.pkl')]
+    for pkl_file in pkl_files:
+        data = pickle.load(open(os.path.join(DATA_DIR, PKL_FILE_DIR, pkl_file), 'rb'))
+    
+    
+        orig_num_concepts = len(data[0]["attribute_label"])
+
+        
+        attribute_idxs = list(range(orig_num_concepts))
+        attribute_idx_kept = random.sample(attribute_idxs, n_attributes_keep)
+        
+        for i in range(len(data)):
+            data[i]["attribute_label"] = [data[i]["attribute_label"][idx] for idx in attribute_idx_kept]
+            data[i]["attribute_certainty"] = [data[i]["attribute_certainty"][idx] for idx in attribute_idx_kept]
+            
+        
+        if not os.path.exists(DATA_DIR + PKL_FILE_INCOMPLETE_DIR):
+            os.makedirs(DATA_DIR + PKL_FILE_INCOMPLETE_DIR)
+        
+        incomplete_file_path = os.path.join(DATA_DIR, PKL_FILE_INCOMPLETE_DIR, pkl_file)
+        pickle.dump(data, open(incomplete_file_path, 'wb'))
+
+
 
 
 
@@ -40,17 +70,18 @@ class CUBDataset(Dataset):
         for file_path in pkl_file_paths:
             self.data.extend(pickle.load(open(file_path, 'rb')))
             
-            
         # Change the image file paths    
         prefix = "/datasets/"
         for i in range(len(self.data)):
             original_img_path = self.data[i]['img_path']
             if prefix in original_img_path:
                 relevant_part_old_path = original_img_path.split(prefix, 1)[1]
-                new_img_path = CUB_DATA_DIR + relevant_part_old_path
+                new_img_path = DATA_DIR + CUB_DATA_DIR + relevant_part_old_path
                 self.data[i]['img_path'] = new_img_path
             else:
                 raise ValueError(f"Unexpected image path format: {original_img_path}")
+            
+        
             
         self.transform = transform
         self.use_attr = use_attr
