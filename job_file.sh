@@ -12,9 +12,9 @@ set -euo pipefail
 # -------------------------
 # Paths
 # -------------------------
-BASE_DIR="/cluster/customapps/biomed/vogtlab/users/smarcou/CBM_Implementation"
-LOG_DIR="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/Logs"
-CUB_DATA_DIR="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/CUB_Data"
+BASE_DIR="/cluster/customapps/biomed/vogtlab/users/smarcou/CBM_Implementation/"
+LOG_DIR="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/Logs/"
+CUB_DATA_DIR="/cluster/home/smarcou/Desktop/Work (biomed)/vogtlab/Group/smarcou/CUB_Data/"
 
 # -------------------------
 # Runtime parameters

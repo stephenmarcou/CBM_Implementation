@@ -91,6 +91,8 @@ def parse_arguments():
                                  'For end2end & bottleneck model')
         parser.add_argument('-connect_CY', action='store_true',
                             help='Whether to use concepts as auxiliary features (in multitasking) to predict Y')
+        parser.add_argument('-early_stop_patience', type=int, default=100,
+                            help='Number of epochs with no validation improvement before stopping')
         args = parser.parse_args()
         args.three_class = (args.n_class_attr == 3)
         return args

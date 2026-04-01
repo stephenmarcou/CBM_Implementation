@@ -278,8 +278,8 @@ def train(model, args):
         if epoch >= 100 and val_acc_meter.avg < 3:
             print("Early stopping because of low accuracy")
             break
-        if epoch - best_epoch >= 100:
-            print("Early stopping because acc hasn't improved for a long time")
+        if epoch - best_epoch >= args.early_stop_patience:
+            print(f"Early stopping at epoch {epoch}: validation accuracy did not improve for {args.early_stop_patience} epochs")
             break
             
     

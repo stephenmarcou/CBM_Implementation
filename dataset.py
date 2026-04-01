@@ -136,8 +136,11 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     def __init__(self, dataset, indices=None):
         # if indices is not provided,
         # all elements in the dataset will be considered
-        self.indices = list(range(len(dataset))) \
-            if indices is None else indices
+        if indices is None:
+            indices = list(range(len(dataset)))
+        else:
+            self.indices = indices
+
 
         # if num_samples is not provided,
         # draw `len(indices)` samples in each iteration
