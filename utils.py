@@ -1,6 +1,7 @@
 import torch
 import os
 import sys
+from sklearn.metrics import balanced_accuracy_score, classification_report
 
 
 
@@ -108,3 +109,11 @@ class Logger(object):
             self.file.close()
             
             
+def multiclass_metric(output, target):
+    """
+    Return balanced accuracy score (average of recall for each class) in case of class imbalance,
+    and classification report containing precision, recall, F1 score for each class
+    """
+    balanced_acc = balanced_accuracy_score(target, output)
+    report = classification_report(target, output)
+    return balanced_acc, report

@@ -12,7 +12,18 @@ from PIL import Image, UnidentifiedImageError
 
 from torch.utils.data import BatchSampler
 from torch.utils.data import Dataset, DataLoader
-from config import CUB_DATA_DIR, N_ATTRIBUTES_ORIG, PKL_FILE_DIR, DATA_DIR, PKL_FILE_INCOMPLETE_DIR
+from config import CUB_DATA_DIR, N_ATTRIBUTES, PKL_FILE_DIR, DATA_DIR, PKL_FILE_INCOMPLETE_DIR
+
+
+SELECTED_ATTRIBUTED_ORIG_CBM =   [1, 4, 6, 7, 10, 14, 15, 20, 21, 23, 25, 29, 30, 35, 36, 38, 40, 44, 45, 50, 51, 53, 54, 56, 57, 59, 63, 64, 69, 70, 72, 75, 80, 84, 90, 91, \
+    93, 99, 101, 106, 110, 111, 116, 117, 119, 125, 126, 131, 132, 134, 145, 149, 151, 152, 153, 157, 158, 163, 164, 168, 172, 178, 179, 181, \
+    183, 187, 188, 193, 194, 196, 198, 202, 203, 208, 209, 211, 212, 213, 218, 220, 221, 225, 235, 236, 238, 239, 240, 242, 243, 244, 249, 253, \
+    254, 259, 260, 262, 268, 274, 277, 283, 289, 292, 293, 294, 298, 299, 304, 305, 308, 309, 310, 311]
+
+
+
+
+
 
 
 def create_incomplete_concept_data(n_attributes_keep):
@@ -41,8 +52,6 @@ def create_incomplete_concept_data(n_attributes_keep):
         
         incomplete_file_path = os.path.join(DATA_DIR, PKL_FILE_INCOMPLETE_DIR, pkl_file)
         pickle.dump(data, open(incomplete_file_path, 'wb'))
-
-
 
 
 
@@ -114,8 +123,8 @@ class CUBDataset(Dataset):
             if self.no_img:
                 # whether attr prediction is a binary or triary classification
                 if self.n_class_attr == 3:
-                    one_hot_attr_label = np.zeros((N_ATTRIBUTES_ORIG, self.n_class_attr), dtype=np.float32)
-                    one_hot_attr_label[np.arange(N_ATTRIBUTES_ORIG), attr_label] = 1
+                    one_hot_attr_label = np.zeros((N_ATTRIBUTES, self.n_class_attr), dtype=np.float32)
+                    one_hot_attr_label[np.arange(N_ATTRIBUTES), attr_label] = 1
                     return one_hot_attr_label, class_label
                 else:
                     return attr_label, class_label

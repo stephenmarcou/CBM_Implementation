@@ -1,8 +1,8 @@
 
 import argparse
 import sys
-from train import train_c_to_y, train_joint
-from config import N_ATTRIBUTES_ORIG
+from train import train_X_to_C, train_c_to_y, train_joint
+from config import N_ATTRIBUTES
 
 def parse_arguments():
     # Get argparse configs from user
@@ -66,7 +66,7 @@ def parse_arguments():
                             help='Whether to use weighted loss for single attribute or multiple ones')
         parser.add_argument('-uncertain_labels', action='store_true',
                             help='whether to use (normalized) attribute certainties as labels')
-        parser.add_argument('-n_attributes', type=int, default=N_ATTRIBUTES_ORIG,
+        parser.add_argument('-n_attributes', type=int, default=N_ATTRIBUTES,
                             help='whether to apply bottlenecks to only a few attributes')
         parser.add_argument('-expand_dim', type=int, default=0,
                             help='dimension of hidden layer (if we want to increase model capacity) - for bottleneck only')
@@ -111,6 +111,9 @@ def run_experiments(args):
     
     if args.exp == "Joint":
         train_joint(args)
+    
+    if args.exp == "Concept_XtoC":
+        train_X_to_C(args)
 
 
 if __name__ == "__main__":

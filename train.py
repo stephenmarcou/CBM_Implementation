@@ -2,7 +2,7 @@ import torch
 from utils import accuracy, Logger, AverageMeter, binary_accuracy
 import os
 from config import CUB_DATA_DIR, PKL_FILE_DIR, MIN_LR, LR_DECAY_SIZE, PKL_FILE_INCOMPLETE_DIR, N_CLASSES, ROOT_LOG_DIR, DATA_DIR
-from models import ModelCtoy, ModelXtoCtoY
+from models import ModelCtoy, ModelXtoCtoY, ModelXtoC
 from dataset import load_data, find_class_imbalance, create_incomplete_concept_data
 import math
 
@@ -45,8 +45,10 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
         inputs = inputs.to(device)
         labels = labels.to(device)
 
-
-        class_outputs, attr_outputs = model(inputs)
+        if args.exp == "Concept_XtoC":
+            attr_outputs = model(inputs)
+        else:
+            class_outputs, attr_outputs = model(inputs)
 
         losses = []
         if not args.bottleneck:
@@ -60,7 +62,8 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
                                     attr_labels[:, i].float()
                                 )
                             )
-
+        #print(f"attr_outputs.shape: {attr_outputs.shape}")
+        #print(f"attr_labels.shape: {attr_labels.shape}")
 
         if args.bottleneck: #attribute accuracy
             sigmoid_outputs = torch.sigmoid(attr_outputs)
@@ -167,7 +170,7 @@ def train(model, args):
             assert(imbalance is not None)
             for ratio in imbalance:
                  # weighted: w*BCE(x,y) = w*[-y*log(sigmoid(x)) - (1-y)*log(1-sigmoid(x))]
-                attr_criterion.append(torch.nn.BCEWithLogitsLoss(weight=torch.FloatTensor([ratio]).to(device))) # stephen changed from weight to pos_weight
+                attr_criterion.append(torch.nn.BCEWithLogitsLoss(pos_weight=torch.FloatTensor([ratio]).to(device))) # stephen changed from weight to pos_weight
         else:
             for i in range(args.n_attributes):
                 attr_criterion.append(torch.nn.CrossEntropyLoss())
@@ -288,9 +291,18 @@ def train(model, args):
 def train_c_to_y(args):
     model = ModelCtoy(pretrained=args.pretrained, freeze=args.freeze, input_dim=args.n_attributes, output_dim=N_CLASSES, expand_dim=args.expand_dim)
     train(model, args)
+
+def train_X_to_C(args):
+    model = ModelXtoC(pretrained=args.pretrained, output_dim=args.n_attributes)
+    train(model, args)
+    
+    
+    
     
 def train_joint(args):
     model = ModelXtoCtoY(n_class_attr=args.n_class_attr, pretrained=args.pretrained, num_classes=N_CLASSES, n_attributes=args.n_attributes, expand_dim=args.expand_dim,
                  use_relu=args.use_relu, use_sigmoid=args.use_sigmoid)
     train(model, args)
+    
+
             
