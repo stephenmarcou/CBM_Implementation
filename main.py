@@ -129,6 +129,15 @@ if __name__ == "__main__":
     import torch
     import numpy as np
     
+    
+    # Check that Cuda and GPU is used
+    print("CUDA available:", torch.cuda.is_available())
+    print("CUDA device count:", torch.cuda.device_count())
+
+    if torch.cuda.is_available():
+        print("Current device:", torch.cuda.current_device())
+        print("Device name:", torch.cuda.get_device_name(0))
+    
     args = parse_arguments()
     
     

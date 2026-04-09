@@ -25,6 +25,7 @@ LR=${LR:-0.001}
 EPOCHS=${EPOCHS:-40}
 BATCH_SIZE=${BATCH_SIZE:-64}
 ATTR_LOSS_WEIGHT=${ATTR_LOSS_WEIGHT:-0.01}
+LOG_DIR_CL=${LOG_DIR:-$BASE_DIR/Logs/joint_model_attr_weight_0.01}
 
 export ROOT_LOG_DIR="$LOG_DIR"
 
@@ -49,6 +50,7 @@ echo "CUB_DATA_DIR: $CUB_DATA_DIR"
 echo "Python path: $(which python3)"
 echo "Python version: $(python3 --version)"
 
+
 # -------------------------
 # Run training
 # -------------------------
@@ -56,7 +58,7 @@ echo "Starting Joint training..."
 
 python3 main.py cub Joint \
     --seed "$SEED" \
-    -log_dir joint_model_attr_weight_0.01_no_NL \
+    -log_dir "$LOG_DIR_CL" \
     -e "$EPOCHS" \
     -optimizer sgd \
     -momentum 0.9 \
