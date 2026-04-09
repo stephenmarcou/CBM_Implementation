@@ -2,8 +2,8 @@ import torch
 from utils import accuracy, Logger, AverageMeter, binary_accuracy
 import os
 from config import CUB_DATA_DIR, PKL_FILE_DIR, MIN_LR, LR_DECAY_SIZE, PKL_FILE_INCOMPLETE_DIR, N_CLASSES, ROOT_LOG_DIR, DATA_DIR
-from models import ModelCtoy, ModelXtoCtoY, ModelXtoC
-from dataset import load_data, find_class_imbalance, create_incomplete_concept_data
+from models import ModelCtoy, ModelXtoCtoY, ModelXtoC, ModelXtoChat_ChatToY
+from dataset import load_data, find_class_imbalance
 import math
 
 
@@ -15,7 +15,7 @@ else:
     device = torch.device("cpu")
     
     
-def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, criterion, attr_criterion, args, is_training):
+def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, criterion, attr_criterion, args, is_training, attr_acc_meter=None):
     """
     For the rest of the networks (X -> A, cotraining, simple finetune)
     """
@@ -73,6 +73,16 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
             acc = accuracy(class_outputs, labels, topk=(1,)) #only care about class prediction accuracy
             acc_meter.update(acc[0], inputs.size(0))
             
+            # Optional attribute accuracy tracking for joint / end2end models
+            if (
+                attr_acc_meter is not None
+                and attr_labels is not None
+                and attr_outputs is not None
+            ):
+                sigmoid_outputs = torch.sigmoid(attr_outputs)
+                attr_acc = binary_accuracy(sigmoid_outputs, attr_labels)
+                attr_acc_meter.update(attr_acc.data.cpu().numpy(), inputs.size(0))
+            
             
             # if batch_idx == 30:
             #     predicted_classes = torch.argmax(class_outputs, dim=1)
@@ -96,7 +106,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
-    return loss_meter, acc_meter
+    return loss_meter, acc_meter, attr_acc_meter
     
     
 
@@ -136,7 +146,7 @@ def train(model, args):
     full_path_log_dir = ROOT_LOG_DIR + args.log_dir
     
     # Log
-    if os.path.exists(full_path_log_dir): # job restarted by cluster
+    if os.path.exists(full_path_log_dir):
         for f in os.listdir(full_path_log_dir):
             os.remove(os.path.join(full_path_log_dir, f))
     else:
@@ -155,7 +165,7 @@ def train(model, args):
     # Determine imbalance
     imbalance = None
     if args.use_attr and not args.no_img and args.weighted_loss:
-        train_data_path = DATA_DIR + PKL_FILE_DIR + 'train.pkl'
+        train_data_path = args.data_dir + args.pkl_file_dir + 'train.pkl'
         if args.weighted_loss == 'multiple':
             imbalance = find_class_imbalance(train_data_path, multiple_attr=True)
         else:
@@ -197,28 +207,22 @@ def train(model, args):
     
     
     
-    # Train on incomplete set of concept data if -incomplete flag is included, otherwise train on complete set of concept data
-    if args.incomplete:
-        # Check if incomplete data files exist, otherwise create them
-        create_incomplete_concept_data(args.n_attributes) # creates incomplete concept data and saves it to pkl file
-        train_data_path = os.path.join(DATA_DIR, PKL_FILE_INCOMPLETE_DIR, 'train.pkl')
-        val_data_path = train_data_path.replace('train.pkl', 'val.pkl')
-    else:
-        train_data_path = os.path.join(DATA_DIR, PKL_FILE_DIR, 'train.pkl')
-        val_data_path = train_data_path.replace('train.pkl', 'val.pkl')
+
+    train_data_path = os.path.join(args.data_dir, args.pkl_file_dir, 'train.pkl')
+    val_data_path = train_data_path.replace('train.pkl', 'val.pkl')
         
     logger.write(f"train_data_path: {train_data_path}\n")
     
     
     
     if args.ckpt: #retraining
-        train_loader = load_data([train_data_path, val_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
+        train_loader = load_data(args, [train_data_path, val_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
                                  n_class_attr=args.n_class_attr, resampling=args.resampling)
         val_loader = None
     else:
-        train_loader = load_data([train_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
+        train_loader = load_data(args, [train_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
                                  n_class_attr=args.n_class_attr, resampling=args.resampling)
-        val_loader = load_data([val_data_path], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir, n_class_attr=args.n_class_attr)
+        val_loader = load_data(args, [val_data_path], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir, n_class_attr=args.n_class_attr)
 
     
     
@@ -231,18 +235,28 @@ def train(model, args):
     for epoch in range(0, args.epochs):
         train_loss_meter = AverageMeter()
         train_acc_meter = AverageMeter()
+        if args.print_attr_acc:
+            train_attr_acc_meter = AverageMeter()  
+        else:
+            train_attr_acc_meter = None
+        
+        
         # split between cases if concept is input or image is input
         if args.no_img:
             train_loss_meter, train_acc_meter = run_epoch_c_to_y(model, optimizer,
                                                                        train_loader, train_loss_meter, train_acc_meter, 
                                                                        criterion, is_training=True)
         else:
-            run_epoch_from_raw_input(model, optimizer, train_loader, train_loss_meter, train_acc_meter, criterion, attr_criterion, args, is_training=True)
+            train_loss_meter, train_acc_meter, train_attr_acc_meter = run_epoch_from_raw_input(model, optimizer, train_loader, train_loss_meter, train_acc_meter, criterion, attr_criterion, args, attr_acc_meter=train_attr_acc_meter, is_training=True)
         
         # If not retraining, evaluate on validation set at end of each epoch and save best model
         if not args.ckpt:
             val_loss_meter = AverageMeter()
             val_acc_meter = AverageMeter()
+            if args.print_attr_acc:
+                val_attr_acc_meter = AverageMeter()
+            else:
+                val_attr_acc_meter = None
 
             with torch.no_grad():
                 if args.no_img:
@@ -250,9 +264,9 @@ def train(model, args):
                                                                            val_loader, val_loss_meter, val_acc_meter, 
                                                                            criterion, is_training=False)
                 else:
-                    val_loss_meter, val_acc_meter = run_epoch_from_raw_input(model, optimizer,
-                                                                             val_loader, val_loss_meter, val_acc_meter,
-                                                                             criterion, attr_criterion, args, is_training=False)
+                    val_loss_meter, val_acc_meter, val_attr_acc_meter = run_epoch_from_raw_input(model, optimizer,
+                                                                                                 val_loader, val_loss_meter, val_acc_meter,
+                                                                                                 criterion, attr_criterion, args, attr_acc_meter=val_attr_acc_meter, is_training=False)
 
         # If retraining
         else: 
@@ -268,8 +282,26 @@ def train(model, args):
             save_file = "best_model_" + args.exp + ".pt"
             torch.save(model.state_dict(), os.path.join(ROOT_LOG_DIR, args.log_dir, save_file))
             
-        logger.write(f"""Epoch {epoch}\t Train loss: {train_loss_avg:.4f}\t Train acc: {train_acc_meter.avg.item():.2f}%\t Val loss: {val_loss_avg:.4f}\t Val acc: {val_acc_meter.avg.item():.2f}%\t Best Val epoch: {best_epoch} \n""")
+            
+        log_line = (
+        f"Epoch {epoch}\t "
+        f"Train loss: {train_loss_avg:.4f}\t "
+        f"Train acc: {train_acc_meter.avg.item():.2f}%\t "
+        f"Val loss: {val_loss_avg:.4f}\t "
+        f"Val acc: {val_acc_meter.avg.item():.2f}%\t "
+    )
+
+        if args.print_attr_acc and train_attr_acc_meter is not None:
+            log_line += (
+                f"Train attr acc: {train_attr_acc_meter.avg:.2f}%\t "
+                f"Val attr acc: {val_attr_acc_meter.avg:.2f}%\t "
+            )
+
+        log_line += f"Best Val epoch: {best_epoch}\n"
+        logger.write(log_line)
         logger.flush()
+        #logger.write(f"""Epoch {epoch}\t Train loss: {train_loss_avg:.4f}\t Train acc: {train_acc_meter.avg.item():.2f}%\t Val loss: {val_loss_avg:.4f}\t Val acc: {val_acc_meter.avg.item():.2f}%\t Best Val epoch: {best_epoch} \n""")
+        #logger.flush()
         
         
         if epoch <= num_epoch_till_min_LR:
@@ -296,8 +328,11 @@ def train_X_to_C(args):
     model = ModelXtoC(pretrained=args.pretrained, output_dim=args.n_attributes)
     train(model, args)
     
-    
-    
+# Sequential
+def train_Chat_to_y_and_test_on_Chat(args):
+    model = ModelXtoChat_ChatToY(n_class_attr=args.n_class_attr, n_attributes=args.n_attributes,
+                                 num_classes=N_CLASSES, expand_dim=args.expand_dim)
+    train(model, args)
     
 def train_joint(args):
     model = ModelXtoCtoY(n_class_attr=args.n_class_attr, pretrained=args.pretrained, num_classes=N_CLASSES, n_attributes=args.n_attributes, expand_dim=args.expand_dim,

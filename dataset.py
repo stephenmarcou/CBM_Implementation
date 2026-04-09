@@ -26,44 +26,15 @@ SELECTED_ATTRIBUTED_ORIG_CBM =   [1, 4, 6, 7, 10, 14, 15, 20, 21, 23, 25, 29, 30
 
 
 
-def create_incomplete_concept_data(n_attributes_keep):
-    
-    print(f"Creating incomplete concept data with number of concepts kept: {n_attributes_keep}")
-    
-
-    pkl_files = [f for f in os.listdir(DATA_DIR + PKL_FILE_DIR) if f.endswith('.pkl')]
-    for pkl_file in pkl_files:
-        data = pickle.load(open(os.path.join(DATA_DIR, PKL_FILE_DIR, pkl_file), 'rb'))
-    
-    
-        orig_num_concepts = len(data[0]["attribute_label"])
-
-        
-        attribute_idxs = list(range(orig_num_concepts))
-        attribute_idx_kept = random.sample(attribute_idxs, n_attributes_keep)
-        
-        for i in range(len(data)):
-            data[i]["attribute_label"] = [data[i]["attribute_label"][idx] for idx in attribute_idx_kept]
-            data[i]["attribute_certainty"] = [data[i]["attribute_certainty"][idx] for idx in attribute_idx_kept]
-            
-        
-        if not os.path.exists(DATA_DIR + PKL_FILE_INCOMPLETE_DIR):
-            os.makedirs(DATA_DIR + PKL_FILE_INCOMPLETE_DIR)
-        
-        incomplete_file_path = os.path.join(DATA_DIR, PKL_FILE_INCOMPLETE_DIR, pkl_file)
-        pickle.dump(data, open(incomplete_file_path, 'wb'))
-
-
-
-
 class CUBDataset(Dataset):
     """
     Returns a compatible Torch Dataset object customized for the CUB dataset
     """
 
-    def __init__(self, pkl_file_paths, use_attr, no_img, uncertain_label, image_dir, n_class_attr, transform=None):
+    def __init__(self, args, pkl_file_paths, use_attr, no_img, uncertain_label, image_dir, n_class_attr, transform=None):
         """
         Arguments:
+        args: command line arguments
         pkl_file_paths: list of full path to all the pkl data
         use_attr: whether to load the attributes (e.g. False for simple finetune)
         no_img: whether to load the images (e.g. False for A -> Y model)
@@ -85,13 +56,13 @@ class CUBDataset(Dataset):
             original_img_path = self.data[i]['img_path']
             if prefix in original_img_path:
                 relevant_part_old_path = original_img_path.split(prefix, 1)[1]
-                new_img_path = DATA_DIR + CUB_DATA_DIR + relevant_part_old_path
+                new_img_path = args.data_dir + args.cub_data_dir + relevant_part_old_path
                 self.data[i]['img_path'] = new_img_path
             else:
                 raise ValueError(f"Unexpected image path format: {original_img_path}")
             
         
-            
+        args.n_attributes = len(self.data[0]['attribute_label'])    
         self.transform = transform
         self.use_attr = use_attr
         self.no_img = no_img
@@ -180,7 +151,7 @@ class ImbalancedDatasetSampler(torch.utils.data.sampler.Sampler):
     def __len__(self):
         return self.num_samples
 
-def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_class_attr=2, image_dir='images', resampling=False, resol=224, augment=True):
+def load_data(args, pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_class_attr=2, image_dir='images', resampling=False, resol=224, augment=True, create_new_dataset=False):
     """
     Note: ResNet preprocessing uses 224 crops with ImageNet normalization.
     Loads data with transformations applied, and upsample the minority class if there is class imbalance and weighted loss is not used
@@ -211,7 +182,8 @@ def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
 
-    dataset = CUBDataset(pkl_file_paths=pkl_paths,
+    dataset = CUBDataset(args = args,
+                         pkl_file_paths=pkl_paths,
                          use_attr=use_attr,
                          no_img=no_img,
                          uncertain_label=uncertain_label,
@@ -224,6 +196,10 @@ def load_data(pkl_paths, use_attr, no_img, batch_size, uncertain_label=False, n_
         drop_last = True
         shuffle = True
     else:
+        drop_last = False
+        shuffle = False
+    if create_new_dataset:
+        print("NO SHUFFLE, NO DROP LAST FOR NEW DATASET")
         drop_last = False
         shuffle = False
     if resampling:

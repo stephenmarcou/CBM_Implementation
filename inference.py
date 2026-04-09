@@ -8,13 +8,14 @@ import torch
 import argparse
 import numpy as np
 from sklearn.metrics import f1_score
+import pickle
 
-from models import ModelCtoy, ModelXtoCtoY
+from models import ModelCtoy, ModelXtoC, ModelXtoCtoY, ModelXtoChat_ChatToY
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from dataset import load_data
 from config import DATA_DIR, N_CLASSES, PKL_FILE_DIR
-from utils import AverageMeter, multiclass_metric, accuracy, binary_accuracy
+from utils import AverageMeter, multiclass_metric, accuracy, binary_accuracy, log_and_store
 from utils_intervention import compute_concept_percentiles, intervene_on_attributes
 
 import torch
@@ -33,7 +34,7 @@ else:
 
 K = [1, 3, 5] #top k class accuracies to compute
 
-def eval(args):
+def eval(args, log_lines):
     """
     Run inference using model (and model2 if bottleneck)
     Returns: (for notebook analysis)
@@ -65,6 +66,12 @@ def eval(args):
                 output_dim=N_CLASSES,
                 expand_dim=args.expand_dim
             )
+        elif args.model_type == 'ModelXtoC':
+            model = ModelXtoC(
+                pretrained=False,
+                output_dim=args.n_attributes
+            )
+        
         state_dict = torch.load(args.model_dir, map_location=device)
         model = model.to(device)
         model.load_state_dict(state_dict)
@@ -89,7 +96,28 @@ def eval(args):
     
     # When do we use model_dir2?
     if args.model_dir2:
-        model2 = torch.load(args.model_dir2)
+        if args.model_type2 == 'ModelCtoy':
+            model2 = ModelCtoy(
+                pretrained=False,
+                freeze=False,
+                input_dim=args.n_attributes,
+                output_dim=N_CLASSES,
+                expand_dim=args.expand_dim
+            )
+        elif args.model_type2 == 'ModelXtoChat_ChatToY':
+            model2 = ModelXtoChat_ChatToY(
+                n_class_attr=args.n_class_attr,
+                n_attributes=args.n_attributes,
+                num_classes=N_CLASSES,
+                expand_dim=args.expand_dim
+            )
+        
+
+        state_dict2 = torch.load(args.model_dir2, map_location=device)
+        model2 = model2.to(device)
+        model2.load_state_dict(state_dict2)
+        
+        
         if not hasattr(model2, 'use_relu'):
             if args.use_relu:
                 model2.use_relu = True
@@ -120,14 +148,16 @@ def eval(args):
         class_acc_meter.append(AverageMeter())
 
     # Need to change this
-    eval_data_dir = DATA_DIR + PKL_FILE_DIR + args.eval_data + ".pkl"
-    loader = load_data([eval_data_dir], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir,
+    eval_data_dir = args.data_dir + args.pkl_file_dir + args.eval_data + ".pkl"
+
+    loader = load_data(args, [eval_data_dir], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir,
                        n_class_attr=args.n_class_attr)
+
     
     
     """
     if args.intervention:
-        #train_data_dir = DATA_DIR + PKL_FILE_DIR + "train.pkl"
+        #train_data_dir = args.data_dir + args.pkl_file_dir + "train.pkl"
         #train_loader = load_data([train_data_dir], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir,
                      #  n_class_attr=args.n_class_attr)
         ptl_5, ptl_95 = compute_concept_percentiles(model, loader)
@@ -185,7 +215,10 @@ def eval(args):
                 class_outputs = outputs
             else:
                 if args.bottleneck:
-                    attr_outputs = outputs[1:][0] # To get tensor instead of tuple of length 1 with tensor, Batch x N_ATTR
+                    if not args.model_type == "ModelXtoC":
+                        attr_outputs = outputs[1:][0] # To get tensor instead of tuple of length 1 with tensor, Batch x N_ATTR
+                    else: 
+                        attr_outputs = outputs # for ModelXtoC, outputs is just the attribute predictions and there is no class prediction
                     if args.use_relu:
                         attr_outputs = torch.relu(attr_outputs)
                         attr_outputs_sigmoid = torch.sigmoid(attr_outputs)
@@ -197,11 +230,12 @@ def eval(args):
 
                     if model2:
                         # stage2_inputs = torch.cat(attr_outputs, dim=1) # Do not think I need this I changed it 
+                        #stage2_inputs = (attr_outputs_sigmoid >= 0.5).float() # need to threshold before concatenating for triary classification
                         stage2_inputs = attr_outputs
                         class_outputs = model2(stage2_inputs)
                     else:  # for debugging bottleneck performance without running stage 2
                         class_outputs = torch.zeros([inputs.size(0), N_CLASSES],
-                                                    dtype=torch.float64).to(device)  # ignore this
+                                                    dtype=torch.float32).to(device)  # ignore this
                 else:  # cotraining, end2end
 
                     attr_outputs = outputs[1:][0] # To get tensor instead of tuple of length 1 with tensor, Batch x N_ATTR
@@ -259,11 +293,11 @@ def eval(args):
     wrong_idx = np.where(np.sum(topk_class_outputs == topk_class_labels, axis=1) == 0)[0]
 
     for j in range(len(K)):
-        print('Average top %d class accuracy: %.5f' % (K[j], class_acc_meter[j].avg))
+        log_and_store(f'Average top {K[j]} class accuracy: {class_acc_meter[j].avg.item():.5f}', log_lines)
 
     # Attribute prediction performance
     if args.use_attr and not args.no_img:  
-        print('Average attribute accuracy: %.5f' % attr_acc_meter[0].avg)
+        log_and_store(f'Average attribute accuracy: {attr_acc_meter[0].avg.item():.5f}', log_lines)
         all_attr_outputs_int = np.array(all_attr_outputs_sigmoid) >= 0.5
         if args.feature_group_results:
             n = len(all_attr_labels)
@@ -302,10 +336,10 @@ def eval(args):
 
         balanced_acc, report = multiclass_metric(all_attr_outputs_int, all_attr_labels)
         f1 = f1_score(all_attr_labels, all_attr_outputs_int)
-        print("Total 1's predicted:", sum(np.array(all_attr_outputs_sigmoid) >= 0.5) / len(all_attr_outputs_sigmoid))
-        print('Avg attribute balanced acc: %.5f' % (balanced_acc))
-        print("Avg attribute F1 score: %.5f" % f1)
-        print(report + '\n')
+        log_and_store(f"Total 1's predicted: {sum(np.array(all_attr_outputs_sigmoid) >= 0.5) / len(all_attr_outputs_sigmoid)}", log_lines)
+        log_and_store(f"Avg attribute balanced acc: {balanced_acc}", log_lines)
+        log_and_store(f"Avg attribute F1 score: {f1}", log_lines)
+        log_and_store('Attribute Performance: \n' + report + '\n', log_lines)
     return class_acc_meter, attr_acc_meter, all_class_labels, topk_class_outputs, all_class_logits, all_attr_labels, all_attr_outputs, all_attr_outputs_sigmoid, wrong_idx, all_attr_outputs2
 
 if __name__ == '__main__':
@@ -323,6 +357,11 @@ if __name__ == '__main__':
     parser.add_argument('-model_type', default='ModelXtoCtoY', help='type of model to evaluate, needed to determine how to load the model and what results to return. Only relevant if loading from checkpoint, otherwise can be ignored')
     parser.add_argument('-expand_dim', type=int, default=0,
                             help='dimension of hidden layer (if we want to increase model capacity) - for bottleneck only')
+    parser.add_argument('-model_type2', default=None, help='type of model for second model to evaluate (for bottleneck), needed to determine how to load the model and what results to return.')
+    parser.add_argument('-pkl_file_dir', default='class_attr_data_10/', help='directory to the CUB pkl files relative to data_dir')
+    parser.add_argument('-cub_data_dir', default='CUB_200_2011/', help='directory to the CUB image data')
+    
+    
     
     parser.add_argument('-log_dir', default='.', help='where results are stored')
     parser.add_argument('-model_dirs', default=None, nargs='+', help='where the trained models are saved')
@@ -333,7 +372,7 @@ if __name__ == '__main__':
     parser.add_argument('-bottleneck', help='whether to predict attributes before class labels', action='store_true')
     parser.add_argument('-image_dir', default='images', help='test image folder to run inference on')
     parser.add_argument('-n_class_attr', type=int, default=2, help='whether attr prediction is a binary or triary classification')
-    parser.add_argument('-data_dir', default='', help='directory to the data used for evaluation')
+    parser.add_argument('-data_dir', default='Data/', help='directory to the data used for evaluation')
     parser.add_argument('-n_attributes', type=int, default=112, help='whether to apply bottlenecks to only a few attributes')    
     parser.add_argument('-attribute_group', default=None, help='file listing the (trained) model directory for each attribute group')
     parser.add_argument('-feature_group_results', help='whether to print out performance of individual atttributes', action='store_true')
@@ -342,12 +381,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.batch_size = 16
 
-    print(args)
+    log_lines = []
+    log_and_store(args, log_lines)
     y_results, c_results = [], []
+    
+    # update args.n_attributes based on the data (in case of incomplete concept data, n_attributes will be different from total number of attributes)
+    train_data = pickle.load(open(args.data_dir + args.pkl_file_dir + 'train.pkl', 'rb'))
+    args.n_attributes = len(train_data[0]['attribute_label'])
+    
+    
+    
     for i, model_dir in enumerate(args.model_dirs):
         args.model_dir = model_dir
         args.model_dir2 = args.model_dirs2[i] if args.model_dirs2 else None
-        result = eval(args)
+        result = eval(args, log_lines)
         class_acc_meter, attr_acc_meter = result[0], result[1]
         y_results.append(1 - class_acc_meter[0].avg[0].item() / 100.)
         if attr_acc_meter is not None:
@@ -357,13 +404,10 @@ if __name__ == '__main__':
     values = (np.mean(y_results), np.std(y_results), np.mean(c_results), np.std(c_results))
     output_string = '%.4f %.4f %.4f %.4f' % values
     print_string = 'Error of y: %.4f +- %.4f, Error of C: %.4f +- %.4f' % values
-    print(print_string)
-    output_path = os.path.join(args.log_dir, args.output_file) 
-    if os.path.exists(output_path):
-        with open(output_path, 'w') as output:
-            output.write(output_string)
-    else:
-        os.makedirs(args.log_dir, exist_ok=True)
-        with open(output_path, 'w') as output:
-            output.write(output_string)
+    log_and_store(print_string, log_lines)
+    log_and_store(output_string, log_lines)
+    
+    output_path = os.path.join(args.log_dir, args.output_file + ".txt") 
+    with open(output_path, 'w') as output:
+        output.write('\n'.join(log_lines) + '\n')
 

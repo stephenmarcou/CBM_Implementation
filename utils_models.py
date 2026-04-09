@@ -30,13 +30,13 @@ def wrap_pretrained_model(c_extractor_arch, pretrain_model=True):
 
 
 class End2EndModel(torch.nn.Module):
-    def __init__(self, model1, model2, use_relu=False, use_sigmoid=False, n_class_attr=2, intervention=False):
+    def __init__(self, model1, model2, use_relu=False, use_sigmoid=False, n_class_attr=2):
         super(End2EndModel, self).__init__()
         self.first_model = model1
         self.sec_model = model2
         self.use_relu = use_relu
         self.use_sigmoid = use_sigmoid
-        self.interventio = intervention
+
 
     def forward_stage2(self, stage1_out):
         #print("Stage 1 output shape:", stage1_out.shape)

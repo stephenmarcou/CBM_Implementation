@@ -1,8 +1,9 @@
 
 import argparse
 import sys
-from train import train_X_to_C, train_c_to_y, train_joint
+from train import train_X_to_C, train_c_to_y, train_joint, train_Chat_to_y_and_test_on_Chat
 from config import N_ATTRIBUTES
+import pickle
 
 def parse_arguments():
     # Get argparse configs from user
@@ -44,6 +45,11 @@ def parse_arguments():
     else:
         # I added
         parser.add_argument('-incomplete', action='store_true', help='Whether to train on incomplete set of concept data')
+        parser.add_argument('-cub_data_dir', default='CUB_200_2011/', help='directory to the CUB image data')
+        parser.add_argument('-pkl_file_dir', default='class_attr_data_10/', help='directory to the CUB pkl files relative to data_dir')
+        parser.add_argument('-print_attr_acc', action='store_true', help='Whether to print attribute prediction accuracy after each epoch for bottleneck and joint model')
+        
+        
         
         parser.add_argument('-log_dir', default=None, help='where the trained model is saved')
         parser.add_argument('-batch_size', '-b', type=int, help='mini-batch size')
@@ -72,14 +78,14 @@ def parse_arguments():
                             help='dimension of hidden layer (if we want to increase model capacity) - for bottleneck only')
         parser.add_argument('-n_class_attr', type=int, default=2,
                             help='whether attr prediction is a binary or triary classification')
-        parser.add_argument('-data_dir', default='official_datasets', help='directory to the training data')
+        parser.add_argument('-data_dir', default='Data/', help='directory to the training data')
         parser.add_argument('-image_dir', default='images', help='test image folder to run inference on')
         parser.add_argument('-resampling', help='Whether to use resampling', action='store_true')
         parser.add_argument('-end2end', action='store_true',
                             help='Whether to train X -> A -> Y end to end. Train cmd is the same as cotraining + this arg')
         parser.add_argument('-optimizer', default='SGD', help='Type of optimizer to use, options incl SGD, RMSProp, Adam')
         parser.add_argument('-ckpt', default='', help='For retraining on both train + val set')
-        parser.add_argument('-scheduler_step', type=int, default=1000,
+        parser.add_argument('-scheduler_step', type=int, default=15,
                             help='Number of steps before decaying current learning rate by half')
         parser.add_argument('-normalize_loss', action='store_true',
                             help='Whether to normalize loss by taking attr_loss_weight into account')
@@ -91,10 +97,11 @@ def parse_arguments():
                                  'For end2end & bottleneck model')
         parser.add_argument('-connect_CY', action='store_true',
                             help='Whether to use concepts as auxiliary features (in multitasking) to predict Y')
-        parser.add_argument('-early_stop_patience', type=int, default=100,
+        parser.add_argument('-early_stop_patience', type=int, default=10,
                             help='Number of epochs with no validation improvement before stopping')
         args = parser.parse_args()
         args.three_class = (args.n_class_attr == 3)
+        
         return args
     
     
@@ -115,6 +122,8 @@ def run_experiments(args):
     if args.exp == "Concept_XtoC":
         train_X_to_C(args)
 
+    if args.exp == "Sequential_CtoY":
+        train_Chat_to_y_and_test_on_Chat(args)
 
 if __name__ == "__main__":
     import torch
@@ -127,6 +136,10 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     
+    # update args.n_attributes based on the data (in case of incomplete concept data, n_attributes will be different from total number of attributes)
+    train_data = pickle.load(open(args.data_dir + args.pkl_file_dir + 'train.pkl', 'rb'))
+    args.n_attributes = len(train_data[0]['attribute_label']) 
+
     
     
     run_experiments(args)

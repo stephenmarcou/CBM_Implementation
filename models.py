@@ -7,6 +7,7 @@ from utils_models import wrap_pretrained_model, End2EndModel, MLP
 
 
 # Independent & Sequential Model
+# Need to change the arguments
 def ModelCtoy(pretrained, freeze, input_dim, output_dim, expand_dim):
     """
     input_dim: Number of attributes
@@ -19,6 +20,16 @@ def ModelCtoy(pretrained, freeze, input_dim, output_dim, expand_dim):
 
 def ModelXtoC(pretrained, output_dim):
     return wrap_pretrained_model(resnet34, pretrain_model = pretrained)(output_dim=output_dim)
+
+
+
+def ModelXtoChat_ChatToY(n_class_attr, n_attributes, num_classes, expand_dim):
+    # X -> C part is separate, this is only the C -> Y part (same as Independent model)
+    return ModelCtoy(pretrained=None, freeze = None, input_dim=n_attributes, output_dim=num_classes, expand_dim=expand_dim)
+
+
+
+
 
 # Joint Model
 def ModelXtoCtoY(n_class_attr, pretrained, num_classes, n_attributes,
@@ -40,7 +51,7 @@ def ModelXtoCtoY(n_class_attr, pretrained, num_classes, n_attributes,
         model2 = MLP(input_dim=n_attributes * n_class_attr, num_classes=num_classes, expand_dim=expand_dim)
     else:
         model2 = MLP(input_dim=n_attributes, output_dim=num_classes, expand_dim=expand_dim)
-    return End2EndModel(model1, model2, use_relu, use_sigmoid, n_class_attr, intervention)
+    return End2EndModel(model1, model2, use_relu, use_sigmoid, n_class_attr)
 
 
 

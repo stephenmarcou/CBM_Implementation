@@ -12,6 +12,12 @@ elif torch.backends.mps.is_available():
 else:   
     device = torch.device("cpu")
 
+def log_and_store(msg, log_lines):
+    msg = str(msg)
+    print(msg)
+    log_lines.append(msg)
+
+
 
 class AverageMeter(object):
     """

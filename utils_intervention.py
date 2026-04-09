@@ -5,6 +5,7 @@ import random
 import torch
 
 from utils import accuracy
+from utils_models import End2EndModel
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -53,7 +54,7 @@ ATTRIBUTES_IDX_USED = [1, 4, 6, 7, 10, 14, 15, 20, 21, 23, 25, 29, 30, 35, 36, 3
 
 
 
-def compute_concept_percentiles(model, loader):
+def compute_concept_percentiles(args, model, loader):
     model.eval()
     all_attr_outputs = []
 
@@ -62,7 +63,10 @@ def compute_concept_percentiles(model, loader):
             inputs, labels, attr_labels = data
             inputs = inputs.to(device)
 
-            attr_outputs = model.first_model(inputs)
+            if args.model_type == 'ModelXtoC':
+                attr_outputs = model(inputs)
+            else:
+                attr_outputs = model.first_model(inputs)
 
 
             all_attr_outputs.append(attr_outputs.detach().cpu().numpy())
@@ -74,7 +78,7 @@ def compute_concept_percentiles(model, loader):
 
 """
 def get_attribute_class_statistics():
-    train_data = pickle.load(open(DATA_DIR + PKL_FILE_DIR + "train_data.pkl", "rb"))
+    train_data = pickle.load(open(args.data_dir + args.pkl_file_dir + "train_data.pkl", "rb"))
     
     # Count samples in each class with each attribute present/absent
     class_attr_count = np.zeros((N_CLASSES, N_ATTRIBUTES, 2)) 
@@ -110,7 +114,7 @@ def get_attribute_mask(class_attr_labels, min_class_count=10):
     return mask, attr_class_count
 
 
-def get_attribute_parts_to_indices():
+def get_attribute_parts_to_indices(args):
     """
     Maps attribute idx to attribute parts (e.g. bill, wing, etc.)
     """
@@ -120,7 +124,7 @@ def get_attribute_parts_to_indices():
     old_idx_to_new_idx = {old_idx: new_idx for new_idx, old_idx in enumerate(ATTRIBUTES_IDX_USED)}
     #print(old_idx_to_new_idx)
     
-    with open(DATA_DIR + CUB_DATA_DIR + "attributes.txt", "r") as f:
+    with open(args.data_dir + args.cub_data_dir + "attributes.txt", "r") as f:
         lines = f.readlines()
         semantic_groups = {}
         for line in lines:
@@ -152,7 +156,7 @@ def intervene_on_attributes(args, attr_logits, attr_labels, ptl_5, ptl_95, attri
     
     
     # Get attribute idx to intervene 
-    attribute_parts_to_indices = get_attribute_parts_to_indices()
+    attribute_parts_to_indices = get_attribute_parts_to_indices(args)
     intervene_idx = []
     
     for part_name in attribute_part_intervene:
@@ -180,7 +184,7 @@ def intervene_on_attributes(args, attr_logits, attr_labels, ptl_5, ptl_95, attri
 
 
 def intervene_on_attributes_random_trials(
-    end_to_end_model,
+    model,
     args,
     attr_logits,
     attr_labels,
@@ -189,9 +193,9 @@ def intervene_on_attributes_random_trials(
     ptl_95,
     n_groups_replace,
     attr_certainty,
-    num_trials=5,
+    num_trials=1,
 ):
-    attribute_parts_to_indices = get_attribute_parts_to_indices()
+    attribute_parts_to_indices = get_attribute_parts_to_indices(args)
     accuracy_trials = []
 
     device = attr_logits.device
@@ -200,6 +204,8 @@ def intervene_on_attributes_random_trials(
 
     B, A = attr_logits.shape
 
+    
+    
     for _ in range(num_trials):
         attr_new = attr_logits.clone()
 
@@ -218,13 +224,21 @@ def intervene_on_attributes_random_trials(
                     binary_val = 0
                 if binary_val == 1:
                     attr_new[i, a] = ptl_95[a]
+
+                    
                 else:
                     attr_new[i, a] = ptl_5[a]
 
-        class_outputs, _ = end_to_end_model.forward_stage2(attr_new)
-        acc = accuracy(class_outputs, class_labels)
-        accuracy_trials.append(acc)
 
+        if isinstance(model, End2EndModel):
+            print("Using forward_stage2 for End2EndModel")
+            class_outputs, _ = model.forward_stage2(attr_new)
+        else:
+            class_outputs = model(attr_new)
+        acc = accuracy(class_outputs, class_labels)
+        acc = acc[0].item()  # Get the accuracy value from the list of tensors
+        accuracy_trials.append(acc)
+    print(accuracy_trials, type(max(accuracy_trials)))
     return max(accuracy_trials)
 
 
