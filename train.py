@@ -25,6 +25,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
         model.eval()
 
     for batch_idx, data in enumerate(loader):
+        print(f"Processing batch {batch_idx}...")
         t0 = time.time()
         if attr_criterion is None:
             inputs, labels = data
@@ -42,6 +43,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
                 
 
             attr_labels = attr_labels.to(device)
+        print("Done loading data")
         t1 = time.time()
 
         inputs = inputs.to(device)

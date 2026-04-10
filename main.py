@@ -129,6 +129,7 @@ if __name__ == "__main__":
     import torch
     import numpy as np
     
+    print("Updated added")
     
     # Check that Cuda and GPU is used
     print("CUDA available:", torch.cuda.is_available())
