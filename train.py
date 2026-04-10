@@ -156,7 +156,7 @@ def run_epoch_c_to_y(model, optimizer, loader, loss_meter, acc_meter, criterion,
 
 
 def train(model, args):
-    print("In train function")
+    print("In train function", flush=True)
 
     # Ensure all models go into the same log dir
     if os.path.isabs(args.log_dir):
@@ -164,7 +164,7 @@ def train(model, args):
     else:
         full_path_log_dir = os.path.join(ROOT_LOG_DIR, args.log_dir)
     full_path_log_dir = ROOT_LOG_DIR + args.log_dir
-    print("1")
+    print("1", flush=True)
     # Log
     if os.path.exists(full_path_log_dir):
         for f in os.listdir(full_path_log_dir):
@@ -172,20 +172,20 @@ def train(model, args):
     else:
         os.makedirs(full_path_log_dir)
     
-    print("2")
+    print("2", flush=True)
     log_file_name = args.exp + "_log.txt"
     logger = Logger(os.path.join(full_path_log_dir, log_file_name))
-    print("3.5")
+    print("3.5", flush=True)
     logger.write('\n' + str(args) + '\n')
     # logger.write(str(imbalance) + '\n') Need to be impemented later
-    print("3.75")
+    print("3.75", flush=True)
     logger.flush()
     
-    print("3")
+    print("3", flush=True)
     model = model.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     
-    print("4")
+    print("4", flush=True)
     # Determine imbalance
     imbalance = None
     if args.use_attr and not args.no_img and args.weighted_loss:
@@ -365,7 +365,7 @@ def train_Chat_to_y_and_test_on_Chat(args):
 def train_joint(args):
     model = ModelXtoCtoY(n_class_attr=args.n_class_attr, pretrained=args.pretrained, num_classes=N_CLASSES, n_attributes=args.n_attributes, expand_dim=args.expand_dim,
                  use_relu=args.use_relu, use_sigmoid=args.use_sigmoid)
-    print("successfully created model")
+    print("successfully created model", flush=True)
     train(model, args)
     
 
