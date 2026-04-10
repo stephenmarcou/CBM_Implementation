@@ -5,12 +5,12 @@ from config import CUB_DATA_DIR, PKL_FILE_DIR, MIN_LR, LR_DECAY_SIZE, PKL_FILE_I
 from models import ModelCtoy, ModelXtoCtoY, ModelXtoC, ModelXtoChat_ChatToY
 from dataset import load_data, find_class_imbalance
 import math
+import time
 
-
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-elif torch.cuda.is_available():
+if torch.cuda.is_available():
     device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
 else:
     device = torch.device("cpu")
     
@@ -25,6 +25,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
         model.eval()
 
     for batch_idx, data in enumerate(loader):
+        t0 = time.time()
         if attr_criterion is None:
             inputs, labels = data
             attr_labels = None
@@ -41,6 +42,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
                 
 
             attr_labels = attr_labels.to(device)
+        t1 = time.time()
 
         inputs = inputs.to(device)
         labels = labels.to(device)
@@ -50,6 +52,8 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
         else:
             class_outputs, attr_outputs = model(inputs)
 
+        t2 = time.time()
+        
         losses = []
         if not args.bottleneck:
             loss_main = criterion(class_outputs, labels)
@@ -106,6 +110,15 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
+        t3 = time.time()
+
+        if batch_idx < 10:
+            print(
+                f"batch {batch_idx}: "
+                f"load+prep={t1-t0:.3f}s, "
+                f"forward={t2-t1:.3f}s, "
+                f"backward+step={t3-t2:.3f}s"
+            )
     return loss_meter, acc_meter, attr_acc_meter
     
     
@@ -180,7 +193,7 @@ def train(model, args):
             assert(imbalance is not None)
             for ratio in imbalance:
                  # weighted: w*BCE(x,y) = w*[-y*log(sigmoid(x)) - (1-y)*log(1-sigmoid(x))]
-                attr_criterion.append(torch.nn.BCEWithLogitsLoss(pos_weight=torch.FloatTensor([ratio]).to(device))) # stephen changed from weight to pos_weight
+                attr_criterion.append(torch.nn.BCEWithLogitsLoss(weight=torch.FloatTensor([ratio]).to(device))) # stephen changed from weight to pos_weight
         else:
             for i in range(args.n_attributes):
                 attr_criterion.append(torch.nn.CrossEntropyLoss())
