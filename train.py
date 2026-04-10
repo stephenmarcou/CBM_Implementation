@@ -160,7 +160,7 @@ def train(model, args):
 
     # Ensure all models go into the same log dir
     full_path_log_dir = ROOT_LOG_DIR + args.log_dir
-    
+    print("1")
     # Log
     if os.path.exists(full_path_log_dir):
         for f in os.listdir(full_path_log_dir):
@@ -168,16 +168,18 @@ def train(model, args):
     else:
         os.makedirs(full_path_log_dir)
     
+    print("2")
     log_file_name = args.exp + "_log.txt"
     logger = Logger(os.path.join(full_path_log_dir, log_file_name))
     logger.write('\n' + str(args) + '\n')
     # logger.write(str(imbalance) + '\n') Need to be impemented later
     logger.flush()
     
+    print("3")
     model = model.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     
-
+    print("4")
     # Determine imbalance
     imbalance = None
     if args.use_attr and not args.no_img and args.weighted_loss:
