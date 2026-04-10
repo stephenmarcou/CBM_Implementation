@@ -119,20 +119,15 @@ def binary_accuracy(output, target):
             
 class Logger(object):
     def __init__(self, fpath=None):
-        self.console = sys.stdout
         self.file = None
         if fpath is not None:
-            self.file = open(fpath, 'w')
+            self.file = open(fpath, "w", buffering=1)  # line-buffered
 
     def write(self, msg):
-        print("write")
-        self.console.write(msg)
         if self.file is not None:
-            self.file.write(msg)
+            self.file.write(str(msg))
 
     def flush(self):
-        print("flush")
-        self.console.flush()
         if self.file is not None:
             self.file.flush()
 
