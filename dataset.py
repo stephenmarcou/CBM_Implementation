@@ -219,8 +219,10 @@ def find_class_imbalance(full_pkl_file_path, multiple_attr=False, attr_idx=-1):
     If multiple_attr is True, then return imbalance ratio separately for each attribute. 
     Else, calculate the overall imbalance across all attributes
     """
+    print("in find_class_imbalance function")
     imbalance_ratio = []
     data = pickle.load(open(full_pkl_file_path, 'rb'))
+    print(f"Loaded data from {full_pkl_file_path}, number of samples: {len(data)}")
     n = len(data)
     n_attr = len(data[0]['attribute_label'])
     # Imbalance ratio for specified attribute if attr_idx is given

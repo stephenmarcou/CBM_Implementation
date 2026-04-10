@@ -230,7 +230,7 @@ def train(model, args):
     logger.write(f"train_data_path: {train_data_path}\n")
     
     
-    
+    print("Going to load data...")
     if args.ckpt: #retraining
         train_loader = load_data(args, [train_data_path, val_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
                                  n_class_attr=args.n_class_attr, resampling=args.resampling)
