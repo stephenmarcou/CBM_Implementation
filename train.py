@@ -156,6 +156,7 @@ def run_epoch_c_to_y(model, optimizer, loader, loss_meter, acc_meter, criterion,
 
 
 def train(model, args):
+    print("In train function")
 
     # Ensure all models go into the same log dir
     full_path_log_dir = ROOT_LOG_DIR + args.log_dir
@@ -352,6 +353,7 @@ def train_Chat_to_y_and_test_on_Chat(args):
 def train_joint(args):
     model = ModelXtoCtoY(n_class_attr=args.n_class_attr, pretrained=args.pretrained, num_classes=N_CLASSES, n_attributes=args.n_attributes, expand_dim=args.expand_dim,
                  use_relu=args.use_relu, use_sigmoid=args.use_sigmoid)
+    print("successfully created model")
     train(model, args)
     
 

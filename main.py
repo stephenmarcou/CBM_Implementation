@@ -117,6 +117,7 @@ def run_experiments(args):
         train_c_to_y(args)
     
     if args.exp == "Joint":
+        print("In joint if else")
         train_joint(args)
     
     if args.exp == "Concept_XtoC":
