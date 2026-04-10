@@ -159,6 +159,10 @@ def train(model, args):
     print("In train function")
 
     # Ensure all models go into the same log dir
+    if os.path.isabs(args.log_dir):
+        full_path_log_dir = args.log_dir
+    else:
+        full_path_log_dir = os.path.join(ROOT_LOG_DIR, args.log_dir)
     full_path_log_dir = ROOT_LOG_DIR + args.log_dir
     print("1")
     # Log
@@ -298,7 +302,11 @@ def train(model, args):
             best_epoch = epoch
             best_val_acc = val_acc_meter.avg
             save_file = "best_model_" + args.exp + ".pt"
-            torch.save(model.state_dict(), os.path.join(ROOT_LOG_DIR, args.log_dir, save_file))
+            if os.path.isabs(args.log_dir):
+                full_path_log_dir = args.log_dir
+            else:
+                full_path_log_dir = os.path.join(ROOT_LOG_DIR, args.log_dir)
+            torch.save(model.state_dict(), os.path.join(full_path_log_dir, save_file))
             
             
         log_line = (
