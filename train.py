@@ -175,8 +175,10 @@ def train(model, args):
     print("2")
     log_file_name = args.exp + "_log.txt"
     logger = Logger(os.path.join(full_path_log_dir, log_file_name))
+    print("3.5")
     logger.write('\n' + str(args) + '\n')
     # logger.write(str(imbalance) + '\n') Need to be impemented later
+    print("3.75")
     logger.flush()
     
     print("3")
