@@ -25,8 +25,6 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
         model.eval()
 
     for batch_idx, data in enumerate(loader):
-        print(f"Processing batch {batch_idx}...")
-        t0 = time.time()
         if attr_criterion is None:
             inputs, labels = data
             attr_labels = None
@@ -43,8 +41,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
                 
 
             attr_labels = attr_labels.to(device)
-        print("Done loading data")
-        t1 = time.time()
+
 
         inputs = inputs.to(device)
         labels = labels.to(device)
@@ -54,7 +51,7 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
         else:
             class_outputs, attr_outputs = model(inputs)
 
-        t2 = time.time()
+
         
         losses = []
         if not args.bottleneck:
@@ -112,15 +109,10 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
-        t3 = time.time()
 
-        if batch_idx < 10:
-            print(
-                f"batch {batch_idx}: "
-                f"load+prep={t1-t0:.3f}s, "
-                f"forward={t2-t1:.3f}s, "
-                f"backward+step={t3-t2:.3f}s"
-            )
+
+
+
     return loss_meter, acc_meter, attr_acc_meter
     
     
@@ -156,7 +148,6 @@ def run_epoch_c_to_y(model, optimizer, loader, loss_meter, acc_meter, criterion,
 
 
 def train(model, args):
-    print("In train function", flush=True)
 
     # Ensure all models go into the same log dir
     if os.path.isabs(args.log_dir):
@@ -164,7 +155,6 @@ def train(model, args):
     else:
         full_path_log_dir = os.path.join(ROOT_LOG_DIR, args.log_dir)
     full_path_log_dir = ROOT_LOG_DIR + args.log_dir
-    print("1", flush=True)
     # Log
     if os.path.exists(full_path_log_dir):
         for f in os.listdir(full_path_log_dir):
@@ -172,20 +162,20 @@ def train(model, args):
     else:
         os.makedirs(full_path_log_dir)
     
-    print("2", flush=True)
+
     log_file_name = args.exp + "_log.txt"
     logger = Logger(os.path.join(full_path_log_dir, log_file_name))
-    print("3.5", flush=True)
+
     logger.write('\n' + str(args) + '\n')
     # logger.write(str(imbalance) + '\n') Need to be impemented later
-    print("3.75", flush=True)
+
     logger.flush()
     
-    print("3", flush=True)
+
     model = model.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     
-    print("4", flush=True)
+
     # Determine imbalance
     imbalance = None
     if args.use_attr and not args.no_img and args.weighted_loss:
@@ -238,7 +228,7 @@ def train(model, args):
     logger.write(f"train_data_path: {train_data_path}\n")
     
     
-    print("Going to load data...")
+    #print("Going to load data...")
     if args.ckpt: #retraining
         train_loader = load_data(args, [train_data_path, val_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
                                  n_class_attr=args.n_class_attr, resampling=args.resampling)

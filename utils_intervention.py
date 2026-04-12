@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import random
 import torch
+import re
 
 from utils import accuracy
 from utils_models import End2EndModel
@@ -183,6 +184,29 @@ def intervene_on_attributes(args, attr_logits, attr_labels, ptl_5, ptl_95, attri
     return attr_new
 
 
+
+def get_kept_attribute_parts(args):
+    from utils_intervention import ATTRIBUTE_PARTS
+    info_file = args.data_dir + args.pkl_file_dir + "info.txt"
+    with open(info_file, "r") as f:
+        lines = f.readlines()
+        line_attributes_removed = lines[0]
+        attributes_removed = re.findall(r"'([^']*)'", line_attributes_removed)
+        attributes_kept = [attr for attr in ATTRIBUTE_PARTS if attr not in attributes_removed]
+        print(attributes_kept)
+        print(len(attributes_kept))
+        return attributes_kept
+    
+def get_map_from_old_to_new_attribute_idx(args):
+    info_file = args.data_dir + args.pkl_file_dir + "info.txt"
+    with open(info_file, "r") as f:
+        lines = f.readlines()
+        pairs = re.findall(r"(\d+):\s*(\d+)", lines[-1])
+        old_idx_to_new_idx = {int(k): int(v) for k, v in pairs}
+        return old_idx_to_new_idx
+
+
+
 def intervene_on_attributes_random_trials(
     model,
     args,
@@ -197,25 +221,36 @@ def intervene_on_attributes_random_trials(
 ):
     attribute_parts_to_indices = get_attribute_parts_to_indices(args)
     accuracy_trials = []
-
+    
     device = attr_logits.device
     ptl_5 = torch.tensor(ptl_5, device=device)
     ptl_95 = torch.tensor(ptl_95, device=device)
 
     B, A = attr_logits.shape
-
     
+    if args.incomplete:
+        attribute_parts = get_kept_attribute_parts(args)
+    else:
+        attribute_parts = ATTRIBUTE_PARTS
+
+    if n_groups_replace > len(attribute_parts):
+        return -1
     
     for _ in range(num_trials):
         attr_new = attr_logits.clone()
 
         for i in range(B):
             # intervene random groups of attributes per image
-            parts = random.sample(ATTRIBUTE_PARTS, n_groups_replace)
+            parts = random.sample(attribute_parts, n_groups_replace)
 
             intervene_idx = []
             for part_name in parts:
                 intervene_idx.extend(attribute_parts_to_indices[part_name])
+
+            # If incomplete then have to update the idx of the intervene_idx to match the new attribute idx after removing some attributes
+            if args.incomplete:
+                old_idx_to_new_idx = get_map_from_old_to_new_attribute_idx(args)
+                intervene_idx = [old_idx_to_new_idx[a] for a in intervene_idx]
 
             for a in intervene_idx:
                 binary_val = attr_labels[i, a].item()
@@ -229,7 +264,17 @@ def intervene_on_attributes_random_trials(
                 else:
                     attr_new[i, a] = ptl_5[a]
 
-
+        if (args.model_type2 == 'ModelCtoy' and args.use_sigmoid) or (args.model_type == 'ModelXtoCtoY' and args.use_sigmoid):
+            #print(attr_new[0])
+            print("Using sigmoid activation for intervention")
+            #attr_new = torch.sigmoid(attr_new)
+            #attr_new_binarized = (attr_new > 0.5).float()
+            #print(f"Ratio of attributes correct: {attr_labels.eq(attr_new_binarized).float().mean().item()}")
+            #print(attr_new[0])
+            
+            
+        
+        
         if isinstance(model, End2EndModel):
             print("Using forward_stage2 for End2EndModel")
             class_outputs, _ = model.forward_stage2(attr_new)

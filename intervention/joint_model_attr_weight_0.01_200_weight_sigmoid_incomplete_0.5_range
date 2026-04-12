@@ -1,0 +1,16 @@
+Namespace(output_file='joint_model_attr_weight_0.01_200_weight_sigmoid_incomplete_0.5_range', use_invisible=False, model_type='ModelXtoCtoY', model_type2=None, expand_dim=0, cub_data_dir='CUB_200_2011/', pkl_file_dir='class_attr_data_10_incomplete_0.5/', selected_number_groups_intervene=None, num_trials=1, incomplete=True, log_dir='intervention', model_dirs=['Logs/joint_model_attr_weight_0.01_200_weight_sigmoid_incomplete_0.5/best_model_Joint.pt'], model_dirs2=None, eval_data='test', use_attr=True, no_img=False, bottleneck=False, image_dir='images', n_class_attr=2, data_dir='Data/', n_attributes=53, attribute_group=None, feature_group_results=False, use_relu=False, use_sigmoid=True, batch_size=16, model_dir='Logs/joint_model_attr_weight_0.01_200_weight_sigmoid_incomplete_0.5/best_model_Joint.pt', model_dir2=None)
+Accuracy after intervening on 0 groups: 65.7231674194336
+Accuracy after intervening on 1 groups: 66.98308563232422
+Accuracy after intervening on 2 groups: 68.05316162109375
+Accuracy after intervening on 3 groups: 69.72731018066406
+Accuracy after intervening on 4 groups: 71.59130859375
+Accuracy after intervening on 5 groups: 74.12841033935547
+Accuracy after intervening on 6 groups: 75.23300170898438
+Accuracy after intervening on 7 groups: 75.90611267089844
+Accuracy after intervening on 8 groups: 77.75285339355469
+Accuracy after intervening on 9 groups: 78.97825622558594
+Accuracy after intervening on 10 groups: 80.08284759521484
+Accuracy after intervening on 11 groups: 79.68588256835938
+Accuracy after intervening on 12 groups: 80.16914367675781
+Accuracy after intervening on 13 groups: 79.75492095947266
+Accuracy after intervening on 14 groups: 78.2361068725586

@@ -219,10 +219,13 @@ def eval(args, log_lines):
                         attr_outputs = outputs[1:][0] # To get tensor instead of tuple of length 1 with tensor, Batch x N_ATTR
                     else: 
                         attr_outputs = outputs # for ModelXtoC, outputs is just the attribute predictions and there is no class prediction
+                    
+                    print(f"Attribute outputs shape: {attr_outputs.shape}", flush=True)
                     if args.use_relu:
                         attr_outputs = torch.relu(attr_outputs)
                         attr_outputs_sigmoid = torch.sigmoid(attr_outputs)
                     elif args.use_sigmoid:
+                        print("Applying sigmoid to attribute outputs", flush=True)
                         attr_outputs = torch.sigmoid(attr_outputs)
                         attr_outputs_sigmoid = attr_outputs
                     else:

@@ -89,6 +89,7 @@ def run(args, log_lines):
     
     # When do we use model_dir2?
     if args.model_dir2:
+        # Independent model
         if args.model_type2 == 'ModelCtoy':
             model2 = ModelCtoy(
                 pretrained=False,
@@ -97,6 +98,7 @@ def run(args, log_lines):
                 output_dim=N_CLASSES,
                 expand_dim=args.expand_dim
             )
+        # Sequential model
         elif args.model_type2 == 'ModelXtoChat_ChatToY':
             model2 = ModelXtoChat_ChatToY(
                 n_class_attr=args.n_class_attr,
@@ -138,6 +140,7 @@ def run(args, log_lines):
     all_class_labels, all_attr_labels, all_attr_outputs = [], [], []
     all_attr_certainty = []
     
+    # Select only the attribute certainties of the 112 attributes we have. Attribute certainty is on the 312 attributes.
     selected_concepts_zero_based = torch.tensor([idx - 1 for idx in ATTRIBUTES_IDX_USED])
     test_data = pickle.load(open(args.data_dir + args.pkl_file_dir + "test" + ".pkl", "rb"))
     for sample in test_data:
@@ -188,10 +191,11 @@ def run(args, log_lines):
     
     accuracy_num_groups_intervened = []
     if args.selected_number_groups_intervene is not None:
+        # End2end model
         if not model2:
             accuracy = intervene_on_attributes_random_trials(
                 model, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,args.selected_number_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
-        
+        # Independent or sequential model
         else:
             accuracy = intervene_on_attributes_random_trials(
                 model2, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,args.selected_number_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
@@ -200,6 +204,7 @@ def run(args, log_lines):
         
         print(f"Accuracy after intervening on {args.selected_number_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
         log_lines.append(f"Accuracy after intervening on {args.selected_number_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
+    
     else:    
         for num_groups_intervene in range(len(ATTRIBUTE_PARTS) + 1):
             if not model2:
@@ -209,6 +214,10 @@ def run(args, log_lines):
             else:
                 accuracy = intervene_on_attributes_random_trials(
                     model2, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,num_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
+            
+            # If num_groups_intervene is more than the total number of attribute groups, then stop
+            if accuracy == -1:
+                break
             
             accuracy_num_groups_intervened.append(accuracy)
             
@@ -225,13 +234,15 @@ if __name__ == '__main__':
 
     parser.add_argument('-output_file', default='results.txt', help='file name to save results in log_dir')
     parser.add_argument('-use_invisible', help='Whether to force intervention targets to 0 for attributes that are "not visible". Only applicable if attribute certainty labels are available.', action='store_true')
-    parser.add_argument('-model_type', default='ModelXtoCtoY', help='which model architecture to use for intervention')
-    parser.add_argument('-model_type2', default='ModelCtoy', help='which model architecture to use for intervention when we want to intervene on the output of the first model and feed it into a second model to predict class labels (e.g. for bottleneck model)')
+    parser.add_argument('-model_type', default=None, help='which model architecture to use for intervention')
+    parser.add_argument('-model_type2', default=None, help='which model architecture to use for intervention when we want to intervene on the output of the first model and feed it into a second model to predict class labels (e.g. for bottleneck model)')
     parser.add_argument('-expand_dim', default=0, type=int, help='the dimensionality of the hidden layer in the MLP. If 0, then no hidden layer and just a linear model. Only applicable for ModelCtoy architecture.')  
     parser.add_argument('-cub_data_dir', default='CUB_200_2011/', help='directory to the CUB image data')
     parser.add_argument('-pkl_file_dir', default='class_attr_data_10/', help='directory to the CUB pkl files relative to data_dir')
     parser.add_argument('-selected_number_groups_intervene', default=None, type=int, help='number of attribute groups to intervene on. If None, then will run intervention on all possible numbers of groups (from 0 to total number of groups)')
     parser.add_argument('-num_trials', default=5, type=int, help='number of random trials to run for each number of groups to intervene on (for random selection of groups to intervene on)')
+    parser.add_argument('-incomplete', action='store_true', help='Whether to run intervention on incomplete set of concept data')
+
 
     parser.add_argument('-log_dir', default='intervention', help='where results are stored')
     parser.add_argument('-model_dirs', default=None, nargs='+', help='where the trained models are saved')

@@ -117,7 +117,7 @@ def run_experiments(args):
         train_c_to_y(args)
     
     if args.exp == "Joint":
-        print("In joint if else", flush=True)
+
         train_joint(args)
     
     if args.exp == "Concept_XtoC":
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     import torch
     import numpy as np
     
-    print("Updated added", flush=True)
+
     
     # Check that Cuda and GPU is used
     print("CUDA available:", torch.cuda.is_available(), flush=True)
