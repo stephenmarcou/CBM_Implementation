@@ -15,4 +15,7 @@ Logs/
 Joint0.01Model__Seed1/
 c_to_y/
 outputs/
+intervention/
+inference/
+
 

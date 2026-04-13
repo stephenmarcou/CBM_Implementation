@@ -147,10 +147,10 @@ def eval(args, log_lines):
     for j in range(len(K)):
         class_acc_meter.append(AverageMeter())
 
-    # Need to change this
-    eval_data_dir = args.data_dir + args.pkl_file_dir + args.eval_data + ".pkl"
 
-    loader = load_data(args, [eval_data_dir], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir,
+    eval_data_path = os.path.join(args.data_dir, args.pkl_file_dir, args.eval_data + ".pkl")
+
+    loader = load_data(args, [eval_data_path], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir,
                        n_class_attr=args.n_class_attr)
 
     
@@ -389,7 +389,8 @@ if __name__ == '__main__':
     y_results, c_results = [], []
     
     # update args.n_attributes based on the data (in case of incomplete concept data, n_attributes will be different from total number of attributes)
-    train_data = pickle.load(open(args.data_dir + args.pkl_file_dir + 'train.pkl', 'rb'))
+    train_data_path = os.path.join(args.data_dir, args.pkl_file_dir, 'train.pkl')
+    train_data = pickle.load(open(train_data_path, 'rb'))
     args.n_attributes = len(train_data[0]['attribute_label'])
     
     
