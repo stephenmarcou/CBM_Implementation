@@ -222,7 +222,7 @@ def train(model, args):
     logger.write(f"train_data_path: {train_data_path}\n")
     
     
-    #print("Going to load data...")
+
     if args.ckpt: #retraining
         train_loader = load_data(args, [train_data_path, val_data_path], args.use_attr, args.no_img, args.batch_size, args.uncertain_labels, image_dir=args.image_dir, \
                                  n_class_attr=args.n_class_attr, resampling=args.resampling)
@@ -237,7 +237,6 @@ def train(model, args):
     # Training loop
 
     best_epoch = -1
-    best_val_loss = float('inf')
     best_val_acc = 0.0
     
     for epoch in range(0, args.epochs):
@@ -312,8 +311,7 @@ def train(model, args):
         log_line += f"Best Val epoch: {best_epoch}\n"
         logger.write(log_line)
         logger.flush()
-        #logger.write(f"""Epoch {epoch}\t Train loss: {train_loss_avg:.4f}\t Train acc: {train_acc_meter.avg.item():.2f}%\t Val loss: {val_loss_avg:.4f}\t Val acc: {val_acc_meter.avg.item():.2f}%\t Best Val epoch: {best_epoch} \n""")
-        #logger.flush()
+
         
         
         if epoch <= num_epoch_till_min_LR:

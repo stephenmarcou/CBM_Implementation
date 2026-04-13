@@ -220,7 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('-selected_number_groups_intervene', default=None, type=int, help='number of attribute groups to intervene on. If None, then will run intervention on all possible numbers of groups (from 0 to total number of groups)')
     parser.add_argument('-num_trials', default=5, type=int, help='number of random trials to run for each number of groups to intervene on (for random selection of groups to intervene on)')
     parser.add_argument('-incomplete', action='store_true', help='Whether to run intervention on incomplete set of concept data')
-    parser.add_argument('seed', default=42, type=int, help='random seed for reproducibility')
+    parser.add_argument('-seed', default=42, type=int, help='random seed for reproducibility')
 
     parser.add_argument('-log_dir', default='intervention', help='where results are stored')
     parser.add_argument('-model_dirs', default=None, nargs='+', help='where the trained models are saved')

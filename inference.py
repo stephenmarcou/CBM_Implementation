@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from dataset import load_data
 from config import DATA_DIR, N_CLASSES, PKL_FILE_DIR
 from utils import AverageMeter, multiclass_metric, accuracy, binary_accuracy, log_and_store
-from utils_intervention import compute_concept_percentiles, intervene_on_attributes
+
 
 import torch
 
