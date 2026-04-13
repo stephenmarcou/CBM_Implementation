@@ -2,6 +2,7 @@
 Evaluate trained models on the official CUB test set
 """
 import os
+import random
 import sys
 import torch
 
@@ -314,18 +315,6 @@ def eval(args, log_lines):
                 all_attr_acc.append(attr_acc)
                 all_attr_f1.append(attr_f1)
 
-            '''
-            fig, axs = plt.subplots(1, 2, figsize=(20,10))
-            for plt_id, values in enumerate([all_attr_acc, all_attr_f1]):
-                axs[plt_id].set_xticks(np.arange(0, 1.1, 0.1))
-                if plt_id == 0:
-                    axs[plt_id].hist(np.array(values)/100.0, bins=np.arange(0, 1.1, 0.1), rwidth=0.8)
-                    axs[plt_id].set_title("Attribute accuracies distribution")
-                else:
-                    axs[plt_id].hist(values, bins=np.arange(0, 1.1, 0.1), rwidth=0.8)
-                    axs[plt_id].set_title("Attribute F1 scores distribution")
-            plt.savefig('/'.join(args.model_dir.split('/')[:-1]) + '.png')
-            '''
             bins = np.arange(0, 1.01, 0.1)
             acc_bin_ids = np.digitize(np.array(all_attr_acc) / 100.0, bins)
             acc_counts_per_bin = [np.sum(acc_bin_ids == (i + 1)) for i in range(len(bins))]
@@ -363,7 +352,7 @@ if __name__ == '__main__':
     parser.add_argument('-model_type2', default=None, help='type of model for second model to evaluate (for bottleneck), needed to determine how to load the model and what results to return.')
     parser.add_argument('-pkl_file_dir', default='class_attr_data_10/', help='directory to the CUB pkl files relative to data_dir')
     parser.add_argument('-cub_data_dir', default='CUB_200_2011/', help='directory to the CUB image data')
-    
+    parser.add_argument('-seed', default=42, type=int, help='random seed for reproducibility')
     
     
     parser.add_argument('-log_dir', default='.', help='where results are stored')
@@ -383,6 +372,10 @@ if __name__ == '__main__':
     parser.add_argument('-use_sigmoid', help='Whether to include sigmoid activation before using attributes to predict Y. For end2end & bottleneck model', action='store_true')
     args = parser.parse_args()
     args.batch_size = 16
+
+
+    torch.manual_seed(args.seed)
+    random.seed(args.seed)
 
     log_lines = []
     log_and_store(args, log_lines)

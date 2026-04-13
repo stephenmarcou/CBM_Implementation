@@ -16,6 +16,7 @@ else:
     device = torch.device("cpu")
 
 
+# Fom CEM repo
 ATTRIBUTE_PARTS = [
  'has_bill_shape',
  'has_wing_color',
@@ -47,7 +48,7 @@ ATTRIBUTE_PARTS = [
  'has_wing_pattern',
 ]
 
-
+# Fom CEM repo
 ATTRIBUTES_IDX_USED = [1, 4, 6, 7, 10, 14, 15, 20, 21, 23, 25, 29, 30, 35, 36, 38, 40, 44, 45, 50, 51, 53, 54, 56, 57, 59, 63, 64, 69, 70, 72, 75, 80, 84, 90, 91, \
     93, 99, 101, 106, 110, 111, 116, 117, 119, 125, 126, 131, 132, 134, 145, 149, 151, 152, 153, 157, 158, 163, 164, 168, 172, 178, 179, 181, \
     183, 187, 188, 193, 194, 196, 198, 202, 203, 208, 209, 211, 212, 213, 218, 220, 221, 225, 235, 236, 238, 239, 240, 242, 243, 244, 249, 253, \
@@ -77,42 +78,8 @@ def compute_concept_percentiles(args, model, loader):
     ptl_95 = np.percentile(all_attr_outputs, 95, axis=0)
     return ptl_5, ptl_95
 
-"""
-def get_attribute_class_statistics():
-    train_data = pickle.load(open(args.data_dir + args.pkl_file_dir + "train_data.pkl", "rb"))
-    
-    # Count samples in each class with each attribute present/absent
-    class_attr_count = np.zeros((N_CLASSES, N_ATTRIBUTES, 2)) 
-    
-    
-    # Build statistics about attribute presence/absence in each class
-    for sample in train_data:
-        class_id = sample['class_id']
-        attr_label = sample['attribute_label']
-        attr_certainty = sample['attribute_certainty']
-        for attr_idx, attr_active_status in enumerate(attr_label):
-            # Attribute is marked as absent but we are not confident as attribute is not visible 
-            if attr_active_status == 0 and attr_certainty[attr_idx] == 1:
-                continue
-            class_attr_count[class_id, attr_idx, int(attr_active_status)] += 1
-            
-    class_attr_min_label = np.argmin(class_attr_count, axis=2) # More absent observations than present for each class and attribute, returns the first index of the minimum value in case of tie
-    class_attr_max_label = np.argmax(class_attr_count, axis=2) # More present observations than absent for each class and attribute, returns the first index of the maximum value in case of tie
-    equal_count = np.where(class_attr_min_label == class_attr_max_label)  # check where 0 count = 1 count, set the corresponding class attribute label to be 1
-    class_attr_max_label[equal_count] = 1 # In case of tie, set to 1 (present)
-
-    return class_attr_max_label # (N_CLASSES, N_ATTRIBUTES)
-"""
 
 
-def get_attribute_mask(class_attr_labels, min_class_count=10):
-    """
-    Keep attributes that are present at the class level
-    in at least `min_class_count` classes.
-    """
-    attr_class_count = np.sum(class_attr_labels, axis=0)
-    mask = np.where(attr_class_count >= min_class_count)[0]
-    return mask, attr_class_count
 
 
 def get_attribute_parts_to_indices(args):
@@ -143,48 +110,10 @@ def get_attribute_parts_to_indices(args):
         return semantic_groups
 
 
-def intervene_on_attributes(args, attr_logits, attr_labels, ptl_5, ptl_95, attribute_part_intervene: list):
-    """
-    attr_outputs: tensor of shape (batch_size, n_attributes)
-    intervention_dict: dict mapping attribute indices to intervention values (0 or 1)
-    """
- 
-
-    if not attribute_part_intervene:
-        
-        raise KeyError("Need to specify attribute_part_intervene as a list of attribute parts to intervene on (e.g. ['has_bill_shape', 'has_wing_color'])")
-    
-    
-    
-    # Get attribute idx to intervene 
-    attribute_parts_to_indices = get_attribute_parts_to_indices(args)
-    intervene_idx = []
-    
-    for part_name in attribute_part_intervene:
-        if part_name not in ATTRIBUTE_PARTS:
-            raise KeyError(f"Invalid attribute part name: {part_name}.")
-        part_attr_indices = attribute_parts_to_indices[part_name]
-        intervene_idx.extend(part_attr_indices)
-
-    B, A = attr_logits.shape # batch size, number of attributes
-    attr_new = attr_logits.clone()
-    
-    #print(intervene_idx)
-        
-    for i in range(B):
-        for a in intervene_idx:
-            binary_val = attr_labels[i, a].item()
-            if binary_val == 1:
-                attr_new[i, a] = float(ptl_95[a])
-            else:
-                attr_new[i, a] = float(ptl_5[a])
-
-    
-        
-    return attr_new
 
 
 
+# For incomplete data, from info file find which attribute parts were kept
 def get_kept_attribute_parts(args):
     from utils_intervention import ATTRIBUTE_PARTS
     info_file = args.data_dir + args.pkl_file_dir + "info.txt"
@@ -197,6 +126,7 @@ def get_kept_attribute_parts(args):
         print(len(attributes_kept))
         return attributes_kept
     
+# For incomplete data, from info file find the mapping from old attribute idx to new attribute idx after removing some attributes
 def get_map_from_old_to_new_attribute_idx(args):
     info_file = args.data_dir + args.pkl_file_dir + "info.txt"
     with open(info_file, "r") as f:
@@ -263,17 +193,7 @@ def intervene_on_attributes_random_trials(
                     
                 else:
                     attr_new[i, a] = ptl_5[a]
-
-        if (args.model_type2 == 'ModelCtoy' and args.use_sigmoid) or (args.model_type == 'ModelXtoCtoY' and args.use_sigmoid):
-            #print(attr_new[0])
-            print("Using sigmoid activation for intervention")
-            #attr_new = torch.sigmoid(attr_new)
-            #attr_new_binarized = (attr_new > 0.5).float()
-            #print(f"Ratio of attributes correct: {attr_labels.eq(attr_new_binarized).float().mean().item()}")
-            #print(attr_new[0])
             
-            
-        
         
         if isinstance(model, End2EndModel):
             print("Using forward_stage2 for End2EndModel")

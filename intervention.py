@@ -38,7 +38,7 @@ def run(args, log_lines):
     else:
         device = torch.device("cpu")
         
-        
+    # Load the models    
     if args.model_dir:
         print(f"Loading model from {args.model_dir}")
         # Need to change this if we want to load other types of models, but for now we only have the end2end model so this is fine
@@ -86,8 +86,6 @@ def run(args, log_lines):
         model.cy_fc = None
     model.eval()
     
-    
-    # When do we use model_dir2?
     if args.model_dir2:
         # Independent model
         if args.model_type2 == 'ModelCtoy':
@@ -129,7 +127,7 @@ def run(args, log_lines):
     
 
 
-    # Need to change this
+    # Load test data and compute the percentiles for intervention
     eval_data_dir = args.data_dir + args.pkl_file_dir + args.eval_data + ".pkl"
     loader = load_data(args, [eval_data_dir], args.use_attr, args.no_img, args.batch_size, image_dir=args.image_dir,
                        n_class_attr=args.n_class_attr)
@@ -146,14 +144,12 @@ def run(args, log_lines):
     for sample in test_data:
         attribute_certainty_kept = torch.tensor(sample['attribute_certainty'])[selected_concepts_zero_based]
         all_attr_certainty.append(attribute_certainty_kept)
-        #print(type(attribute_certainty_kept), len(attribute_certainty_kept))
 
     all_attr_certainty = torch.stack(all_attr_certainty)
     
     
     
-    
-    
+    # Get attribute logits, attribute labels, and class labels for the test set
     for i, data in enumerate(loader):
         inputs, labels, attr_labels = data
 
@@ -185,46 +181,28 @@ def run(args, log_lines):
     
     
     
-    
-    
-    
-    
     accuracy_num_groups_intervened = []
-    if args.selected_number_groups_intervene is not None:
-        # End2end model
+
+    # Do intervention on random attribute groups
+    for num_groups_intervene in range(len(ATTRIBUTE_PARTS) + 1):
         if not model2:
             accuracy = intervene_on_attributes_random_trials(
-                model, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,args.selected_number_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
-        # Independent or sequential model
+                model, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,num_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
+        
         else:
             accuracy = intervene_on_attributes_random_trials(
-                model2, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,args.selected_number_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
+                model2, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,num_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
+        
+        # If num_groups_intervene is more than the total number of attribute groups, then stop
+        if accuracy == -1:
+            break
         
         accuracy_num_groups_intervened.append(accuracy)
         
-        print(f"Accuracy after intervening on {args.selected_number_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
-        log_lines.append(f"Accuracy after intervening on {args.selected_number_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
-    
-    else:    
-        for num_groups_intervene in range(len(ATTRIBUTE_PARTS) + 1):
-            if not model2:
-                accuracy = intervene_on_attributes_random_trials(
-                    model, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,num_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
-            
-            else:
-                accuracy = intervene_on_attributes_random_trials(
-                    model2, args, all_attr_outputs, all_attr_labels, all_class_labels, ptl_5, ptl_95,num_groups_intervene, all_attr_certainty, num_trials=args.num_trials)
-            
-            # If num_groups_intervene is more than the total number of attribute groups, then stop
-            if accuracy == -1:
-                break
-            
-            accuracy_num_groups_intervened.append(accuracy)
-            
-            print(f"Accuracy after intervening on {num_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
-            log_lines.append(f"Accuracy after intervening on {num_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
-            
+        print(f"Accuracy after intervening on {num_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
+        log_lines.append(f"Accuracy after intervening on {num_groups_intervene} groups: {accuracy_num_groups_intervened[-1]}")
         
+    
         
     
 if __name__ == '__main__':
@@ -242,7 +220,7 @@ if __name__ == '__main__':
     parser.add_argument('-selected_number_groups_intervene', default=None, type=int, help='number of attribute groups to intervene on. If None, then will run intervention on all possible numbers of groups (from 0 to total number of groups)')
     parser.add_argument('-num_trials', default=5, type=int, help='number of random trials to run for each number of groups to intervene on (for random selection of groups to intervene on)')
     parser.add_argument('-incomplete', action='store_true', help='Whether to run intervention on incomplete set of concept data')
-
+    parser.add_argument('seed', default=42, type=int, help='random seed for reproducibility')
 
     parser.add_argument('-log_dir', default='intervention', help='where results are stored')
     parser.add_argument('-model_dirs', default=None, nargs='+', help='where the trained models are saved')
@@ -264,6 +242,9 @@ if __name__ == '__main__':
     
     args.model_dir = args.model_dirs[0]
     args.model_dir2 = args.model_dirs2[0] if args.model_dirs2 is not None else None
+    
+    torch.manual_seed(args.seed)
+    random.seed(args.seed)
 
     # update args.n_attributes based on the data (in case of incomplete concept data, n_attributes will be different from total number of attributes)
     train_data = pickle.load(open(args.data_dir + args.pkl_file_dir + 'train.pkl', 'rb'))

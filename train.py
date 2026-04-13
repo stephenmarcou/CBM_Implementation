@@ -86,12 +86,6 @@ def run_epoch_from_raw_input(model, optimizer, loader, loss_meter, acc_meter, cr
                 attr_acc = binary_accuracy(sigmoid_outputs, attr_labels)
                 attr_acc_meter.update(attr_acc.data.cpu().numpy(), inputs.size(0))
             
-            
-            # if batch_idx == 30:
-            #     predicted_classes = torch.argmax(class_outputs, dim=1)
-            #     print(f"Predicted classes: {predicted_classes}")
-            #     print(f"True classes: {labels}")
-                
        
         #print(f"length losses: {len(losses)}")
         if attr_criterion is not None:
